@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Reputation Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+/* Mise en page : bandeau de marque, barre d'onglets, colonne de travail unique ; couleurs fournies par les paramètres de la plateforme */
+:root{
+  --accent:#C6DD1F;            /* couleur principale de l'agence (paramètres) */
+  --bg:#111111;                /* fond de l'agence (paramètres) */
+  --panel:color-mix(in srgb,var(--bg) 88%,#ffffff 12%);
+  --panel2:color-mix(in srgb,var(--bg) 80%,#ffffff 20%);
+  --line:color-mix(in srgb,var(--bg) 72%,#ffffff 28%);
+  --fg:#F2F3EE;
+  --muted:#A9AD9F;
+  --on-accent:#111111;
+  --neg:#FF6B5B; --neu:#9AA0A6; --pos:#5FD38D; --warn:#F5B941;
+  --display:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --text:"Inter","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--text)}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.wrap{max-width:78rem;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Boutons et champs */
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.sec:hover{border-color:var(--accent)}
+.btn.danger{background:transparent;color:var(--neg);border:1px solid color-mix(in srgb,var(--neg) 50%,transparent)}
+.btn.mini{padding:4px 9px;font-size:.8rem}
+input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+textarea{min-height:70px;resize:vertical}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.row>*{flex:1 1 180px;min-width:0}
+.row>.btn{flex:0 0 auto}
+
+/* Connexion */
+#ecran-connexion{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.carte-connexion{width:min(400px,100%);display:grid;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px}
+.carte-connexion .logo{max-height:70px;max-width:100%;justify-self:start}
+.carte-connexion h1{font-size:1.45rem}
+.erreur{color:var(--neg);font-size:.88rem;min-height:1.2em}
+.signature{font-size:.75rem;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+
+/* En-tête */
+header.haut{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding-block:10px}
+.marque{display:flex;align-items:center;gap:12px;min-width:0}
+.marque img{height:38px;max-width:160px;object-fit:contain}
+.marque h1{font-size:1.15rem;line-height:1.1}
+.marque .agence{font-size:.75rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.compte{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
+.compte select{width:auto;padding:5px 8px}
+nav.onglets{border-bottom:1px solid var(--line)}
+nav.onglets .wrap{display:flex;gap:4px;overflow-x:auto}
+nav.onglets button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;white-space:nowrap;font-weight:500}
+nav.onglets button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+nav.onglets .compteur{display:inline-block;min-width:1.4em;margin-left:5px;padding:0 5px;border-radius:9px;background:var(--panel2);font-size:.75rem;color:var(--fg)}
+main{padding-block:20px 48px}
+section.vue{display:grid;gap:16px}
+.entete-vue{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.entete-vue h2{font-size:1.3rem}
+
+/* Tableau de bord */
+.chiffres{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.chiffre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.chiffre b{display:block;font:700 1.8rem/1.1 var(--display)}
+.chiffre span{font-size:.82rem;color:var(--muted)}
+.chiffre.alerte{border-color:color-mix(in srgb,var(--neg) 60%,var(--line))}
+.par-marque{width:100%;border-collapse:collapse;font-size:.9rem}
+.par-marque th,.par-marque td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.par-marque th{color:var(--muted);font-weight:500;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+.par-marque td.n{text-align:right}
+.defile{overflow-x:auto}
+
+/* Publications */
+.filtres{display:flex;flex-wrap:wrap;gap:8px}
+.filtres select,.filtres input{width:auto;min-width:0}
+.liste{display:grid;gap:10px}
+.pub{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:8px;min-width:0}
+.pub.Négatif{border-left-color:var(--neg)}
+.pub.Positif{border-left-color:var(--pos)}
+.pub.epingle{box-shadow:0 0 0 1px var(--accent)}
+.pub .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--muted)}
+.pub .meta b{color:var(--fg);font-weight:600}
+.pub .txt{overflow-wrap:anywhere}
+.pub .stats{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem}
+.pub .actions{display:flex;flex-wrap:wrap;gap:6px}
+.pub img.capture{max-width:min(320px,100%);border-radius:6px;border:1px solid var(--line)}
+.puce{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.75rem;font-weight:600;background:var(--panel2)}
+.puce.Négatif{color:var(--neg)} .puce.Positif{color:var(--pos)} .puce.Neutre{color:var(--neu)}
+.puce.acc{background:var(--accent);color:var(--on-accent)}
+.vide{border:1px dashed var(--line);border-radius:8px;padding:28px 20px;text-align:center;color:var(--muted)}
+
+/* Administration */
+.admin-grille{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
+.admin-menu{display:grid;gap:2px;position:sticky;top:120px}
+.admin-menu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;color:var(--muted);cursor:pointer}
+.admin-menu button[aria-current=true]{background:var(--panel);color:var(--fg)}
+.bloc{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
+.bloc h3{font-size:1.02rem}
+table.tab{width:100%;border-collapse:collapse;font-size:.88rem}
+table.tab th,table.tab td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.mdp{font:600 1.05rem/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--accent);border-radius:6px;padding:8px 10px;user-select:all}
+.confirmation{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:color-mix(in srgb,var(--neg) 12%,var(--panel));border-radius:6px;padding:8px 10px;font-size:.85rem}
+.clients-coches{display:flex;flex-wrap:wrap;gap:6px 14px}
+.clients-coches label{display:flex;flex-direction:row;gap:6px;align-items:center;color:var(--fg)}
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;max-width:min(420px,calc(100vw - 32px));z-index:20}
+.toast.ko{border-color:var(--neg)}
+@media (max-width:720px){.admin-grille{grid-template-columns:1fr}.admin-menu{position:static;display:flex;flex-wrap:wrap}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===== Connexion ===== -->
+<div id="ecran-connexion" hidden>
+  <form class="carte-connexion" id="f-connexion" novalidate>
+    <img class="logo" id="c-logo" alt="" hidden>
+    <div>
+      <h1 id="c-titre">Reputation Manager</h1>
+      <p class="muted small" id="c-agence"></p>
+    </div>
+    <label>Adresse e-mail<input type="email" id="c-email" autocomplete="username" required></label>
+    <label>Mot de passe<input type="password" id="c-mdp" autocomplete="current-password" required></label>
+    <div class="erreur" id="c-erreur" role="alert"></div>
+    <button class="btn" type="submit" id="c-btn">Se connecter</button>
+    <p class="muted small">Mot de passe oublié : demandez à votre administrateur de le réinitialiser.</p>
+    <div class="signature">Veille e-réputation propulsée par Viral SARL</div>
+  </form>
+</div>
+
+<!-- ===== Changement de mot de passe obligatoire ===== -->
+<div id="ecran-mdp" hidden>
+  <div style="min-height:100vh;display:grid;place-items:center;padding:24px 16px">
+    <form class="carte-connexion" id="f-mdp" novalidate>
+      <h1>Choisissez votre mot de passe</h1>
+      <p class="muted small">Le mot de passe reçu était provisoire. Choisissez-en un d'au moins 10 caractères.</p>
+      <label>Nouveau mot de passe<input type="password" id="m-1" autocomplete="new-password"></label>
+      <label>Confirmer<input type="password" id="m-2" autocomplete="new-password"></label>
+      <div class="erreur" id="m-erreur" role="alert"></div>
+      <button class="btn" type="submit">Enregistrer et continuer</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Application ===== -->
+<div id="ecran-app" hidden>
+  <header class="haut">
+    <div class="wrap">
+      <div class="marque">
+        <img id="h-logo" alt="" hidden>
+        <div><h1 id="h-titre">Reputation Manager</h1><div class="agence" id="h-agence"></div></div>
+      </div>
+      <div class="compte">
+        <label class="small" style="display:flex;flex-direction:row;align-items:center;gap:6px">Client
+          <select id="sel-client"></select></label>
+        <span id="h-moi" class="muted"></span>
+        <button class="btn sec mini" id="b-compte" type="button">Mon compte</button>
+        <button class="btn sec mini" id="b-sortir" type="button">Se déconnecter</button>
+      </div>
+    </div>
+  </header>
+  <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
+  <main class="wrap" id="contenu"></main>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+// ===== Configuration de la plateforme =====
+const SB_URL='https://quheqdljsycelutylyts.supabase.co';
+const SB_CLE='sb_publishable_q0M1LL74FcfKCbvzPoBy3Q_FUmXvKfV';
+const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
+
+const ROLES={super_viral:'Super administrateur Viral',admin_viral:'Administrateur Viral',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Utilisateur client'};
+const GERE={super_viral:Object.keys(ROLES),admin_viral:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
+const S={moi:null,params:null,clients:[],marques:[],client:'tous',onglet:'tableau',admin:'clients'};
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nb=v=>v==null?'—':Number(v).toLocaleString('fr-FR');
+const date=v=>v?new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).replace(' ',' à ')+' UTC':'non disponible';
+const estAdmin=()=>['super_viral','admin_viral','admin_agence'].includes(S.moi?.role);
+const estViral=()=>['super_viral','admin_viral'].includes(S.moi?.role);
+const peutAgir=()=>S.moi&&S.moi.role!=='user_client';
+let tt;function toast(m,ko){const t=$('#toast');t.textContent=m;t.className='toast'+(ko?' ko':'');t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,ko?7000:3500)}
+function lienSur(u){const s=String(u||'').trim();if(!s)return '';const h=/^https?:\/\//i.test(s)?s:'https://'+s;return /^https?:\/\//i.test(h)?h:''}
+
+// ===== Image de marque =====
+function appliquerMarque(p){
+  if(!p)return;
+  const r=document.documentElement.style;
+  if(/^#[0-9a-f]{6}$/i.test(p.couleur_principale||''))r.setProperty('--accent',p.couleur_principale);
+  if(/^#[0-9a-f]{6}$/i.test(p.couleur_fond||''))r.setProperty('--bg',p.couleur_fond);
+  // texte sur la couleur principale : noir ou blanc selon sa clarté
+  const h=(p.couleur_principale||'#C6DD1F').slice(1),l=(parseInt(h.slice(0,2),16)*299+parseInt(h.slice(2,4),16)*587+parseInt(h.slice(4,6),16)*114)/1000;
+  r.setProperty('--on-accent',l>140?'#111111':'#FFFFFF');
+  document.title=p.nom_plateforme||'Reputation Manager';
+  for(const id of ['c-titre','h-titre'])$('#'+id).textContent=p.nom_plateforme||'Reputation Manager';
+  $('#c-agence').textContent=p.nom_agence?'Plateforme de veille e-réputation de '+p.nom_agence:'';
+  $('#h-agence').textContent=p.nom_agence||'';
+  for(const id of ['c-logo','h-logo']){const im=$('#'+id);if(p.logo_url){im.src=p.logo_url;im.alt=p.nom_agence||'';im.hidden=false}else im.hidden=true}
+}
+
+// ===== Démarrage =====
+async function demarrer(){
+  const {data:p}=await SB.from('parametres').select('*').eq('id',1).maybeSingle();
+  S.params=p;appliquerMarque(p);
+  const {data:{session}}=await SB.auth.getSession();
+  if(!session)return afficher('connexion');
+  await chargerProfil();
+}
+function afficher(e){for(const x of ['connexion','mdp','app'])$('#ecran-'+x).hidden=x!==e}
+
+async function chargerProfil(){
+  const {data:{user}}=await SB.auth.getUser();
+  const {data:u}=await SB.from('utilisateurs').select('*').eq('email',(user?.email||'').toLowerCase()).maybeSingle();
+  if(!u||!u.actif){await SB.auth.signOut();afficher('connexion');$('#c-erreur').textContent="Ce compte n'a pas accès à la plateforme. Contactez votre administrateur.";return}
+  S.moi=u;
+  if(u.doit_changer_mdp)return afficher('mdp');
+  await chargerReferentiel();
+  afficher('app');
+  $('#h-moi').textContent=(u.nom||u.email)+' · '+ROLES[u.role];
+  construireOnglets();ouvrir(S.onglet);
+}
+async function chargerReferentiel(){
+  const [c,m]=await Promise.all([SB.from('clients').select('*').order('nom'),SB.from('marques').select('*').order('nom')]);
+  S.clients=c.data||[];S.marques=m.data||[];
+  const sel=$('#sel-client');
+  const opts=(S.clients.length>1?'<option value="tous">Tous les clients</option>':'')+S.clients.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('');
+  sel.innerHTML=opts||'<option value="tous">Aucun client</option>';
+  if(S.client!=='tous'&&!S.clients.some(x=>String(x.id)===String(S.client)))S.client='tous';
+  if(S.clients.length===1)S.client=String(S.clients[0].id);
+  sel.value=S.client;sel.closest('label').hidden=S.clients.length<1;
+}
+$('#sel-client').addEventListener('change',e=>{S.client=e.target.value;ouvrir(S.onglet)});
+
+$('#f-connexion').addEventListener('submit',async e=>{
+  e.preventDefault();$('#c-erreur').textContent='';$('#c-btn').disabled=true;
+  const {error}=await SB.auth.signInWithPassword({email:$('#c-email').value.trim().toLowerCase(),password:$('#c-mdp').value});
+  $('#c-btn').disabled=false;
+  if(error){$('#c-erreur').textContent='Adresse ou mot de passe incorrect.';return}
+  await chargerProfil();
+});
+$('#f-mdp').addEventListener('submit',async e=>{
+  e.preventDefault();const a=$('#m-1').value,b=$('#m-2').value;
+  if(a.length<10)return $('#m-erreur').textContent='Au moins 10 caractères.';
+  if(a!==b)return $('#m-erreur').textContent='Les deux saisies ne sont pas identiques.';
+  const {error}=await SB.auth.updateUser({password:a});
+  if(error)return $('#m-erreur').textContent='Enregistrement impossible : '+error.message;
+  await SB.rpc('compte_change_mdp');toast('Mot de passe enregistré');await chargerProfil();
+});
+$('#b-sortir').addEventListener('click',async()=>{await SB.auth.signOut();S.moi=null;afficher('connexion')});
+$('#b-compte').addEventListener('click',()=>{S.moi.doit_changer_mdp=true;$('#m-1').value=$('#m-2').value='';$('#m-erreur').textContent='';afficher('mdp')});
+
+// ===== Onglets =====
+function construireOnglets(){
+  const o=[['tableau','Tableau de bord'],['attention','Points d’attention'],['suivies','Publications suivies'],['publications','Publications'],['officiels','Canaux officiels']];
+  if(estAdmin())o.push(['admin','Administration']);
+  if(S.moi.role==='super_viral')o.push(['journal','Journal']);
+  $('#onglets').innerHTML=o.map(([k,l])=>`<button role="tab" data-o="${k}" aria-selected="${k===S.onglet}">${l}<span class="compteur" id="n-${k}" hidden></span></button>`).join('');
+  $('#onglets').querySelectorAll('button').forEach(b=>b.onclick=()=>ouvrir(b.dataset.o));
+}
+function ouvrir(k){
+  S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
+  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),admin:vueAdmin,journal:vueJournal}[k]||vueTableau)();
+}
+function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
+const nomMarque=id=>S.marques.find(m=>m.id===id)?.nom||'';
+const nomClient=id=>S.clients.find(c=>c.id===id)?.nom||'';
+function marquesVisibles(){return S.marques.filter(m=>S.client==='tous'||String(m.client_id)===String(S.client))}
+
+// ===== Tableau de bord =====
+async function vueTableau(){
+  const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
+  const depuis=new Date(Date.now()-864e5).toISOString();
+  const [p24,att,suiv]=await Promise.all([
+    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',depuis)),
+    filtreClient(SB.from('publications').select('id,marque_id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,lien').eq('categorie','attention').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
+    filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie'))]);
+  const pubs=p24.data||[],atts=att.data||[];
+  const neg=pubs.filter(p=>p.sentiment==='Négatif').length,inter=pubs.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0);
+  const ms=marquesVisibles();
+  const lignes=ms.map(m=>{const l=pubs.filter(p=>p.marque_id===m.id),n=l.filter(p=>p.sentiment==='Négatif').length;
+    return `<tr><td>${esc(m.nom)}</td><td>${esc(nomClient(m.client_id))}</td><td class="n num">${l.length}</td><td class="n num">${l.length?Math.round(n*100/l.length)+' %':'—'}</td><td class="n num">${nb(l.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0))}</td><td class="n num">${atts.filter(a=>a.marque_id===m.id).length}</td></tr>`}).join('');
+  const titreClient=S.client==='tous'?'Tous les clients':nomClient(Number(S.client));
+  c.innerHTML=`<section class="vue">
+    <div class="entete-vue"><h2>Tableau de bord</h2><span class="muted small">${esc(titreClient)} · dernières 24 heures</span></div>
+    <div class="chiffres">
+      <div class="chiffre"><b class="num">${pubs.length}</b><span>publications remontées</span></div>
+      <div class="chiffre"><b class="num">${pubs.length?Math.round(neg*100/pubs.length)+' %':'—'}</b><span>de publications négatives</span></div>
+      <div class="chiffre"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
+      <div class="chiffre ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
+      <div class="chiffre"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
+    </div>
+    ${ms.length?`<div class="bloc"><h3>Par marque</h3><div class="defile"><table class="par-marque"><thead><tr><th>Marque</th><th>Client</th><th class="n">Publications</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th></tr></thead><tbody>${lignes}</tbody></table></div></div>`
+      :`<div class="vide">Aucune marque configurée pour l'instant.${estAdmin()?'<br>Ajoutez un client et ses marques dans <a href="#" id="va-admin">Administration</a>.':''}</div>`}
+    <div class="bloc"><h3>Points d'attention</h3>${atts.length?'<div class="liste">'+atts.slice(0,5).map(a=>`<div class="small"><span class="puce acc">${esc(nomMarque(a.marque_id))}</span> ${a.epingle?'<span class="puce">Épinglé</span> ':''}<b>${esc(a.auteur||'Auteur inconnu')}</b> · ${esc(a.plateforme)} · ${esc(a.titre||(a.texte||'').slice(0,120))} · <span class="num">${nb(a.com)}</span> commentaires</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
+  </section>`;
+  const va=$('#va-admin');if(va)va.onclick=e=>{e.preventDefault();ouvrir('admin')};
+  const n=$('#n-attention');if(n){n.textContent=atts.length;n.hidden=!atts.length}
+}
+
+// ===== Listes de publications =====
+const VUES={
+  attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
+  suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
+  publications:{titre:'Publications',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
+  officiels:{titre:'Canaux officiels',q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
+};
+async function vueListe(k){
+  const v=VUES[k],c=$('#contenu');
+  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>${v.titre}</h2>
+    <div class="filtres"><select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>
+    <select id="f-sent" aria-label="Tonalité"><option value="">Toutes tonalités</option><option>Négatif</option><option>Neutre</option><option>Positif</option></select>
+    <select id="f-pf" aria-label="Réseau"><option value="">Tous réseaux</option><option>Facebook</option><option>TikTok</option><option>X</option></select></div></div>
+    <div class="liste" id="liste"><p class="muted">Chargement…</p></div></section>`;
+  const charger=async()=>{
+    let q=filtreClient(v.q(SB.from('publications').select('*'))).limit(200);
+    const fm=$('#f-marque').value,fs=$('#f-sent').value,fp=$('#f-pf').value;
+    if(fm)q=q.eq('marque_id',fm);if(fs)q=q.eq('sentiment',fs);if(fp)q=q.eq('plateforme',fp);
+    const {data,error}=await q;
+    if(error){$('#liste').innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';return}
+    $('#liste').innerHTML=data.length?data.map(carte).join(''):`<div class="vide">${v.vide}</div>`;
+    $('#liste').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>agir(b.dataset.id,b.dataset.a));
+  };
+  ['f-marque','f-sent','f-pf'].forEach(i=>$('#'+i).onchange=charger);charger();
+}
+function carte(p){
+  const lien=lienSur(p.lien);
+  const act=peutAgir()?[
+    p.categorie==='publication'?`<button class="btn sec mini" data-a="suivre" data-id="${p.id}">Suivre</button><button class="btn sec mini" data-a="attention" data-id="${p.id}">Mettre en point d'attention</button>`:'',
+    p.categorie==='suivie'?`<button class="btn sec mini" data-a="ne_plus_suivre" data-id="${p.id}">Ne plus suivre</button><button class="btn sec mini" data-a="attention" data-id="${p.id}">Mettre en point d'attention</button>`:'',
+    p.categorie==='attention'?(p.epingle?`<button class="btn sec mini" data-a="desepingler" data-id="${p.id}">Désépingler</button>`:`<button class="btn sec mini" data-a="epingler" data-id="${p.id}">Épingler</button>`)+`<button class="btn sec mini" data-a="retirer_attention" data-id="${p.id}">Retirer des points d'attention</button>`:''
+  ].join(''):'';
+  return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
+    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}
+      <span><b>${esc(p.auteur||'Auteur inconnu')}</b> · ${esc(p.plateforme)}</span>
+      <span>${p.origine==='humaine'?'Remontée humaine':'Remontée automatisée'}</span>
+      ${p.theme?`<span>${esc(p.theme)}</span>`:''}${p.lieu?`<span>${esc(p.lieu)}</span>`:''}</div>
+    ${p.titre?`<div><b>${esc(p.titre)}</b></div>`:''}
+    ${p.texte?`<div class="txt">${esc(p.texte)}</div>`:''}
+    ${p.capture?`<img class="capture" loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:''}
+    <div class="stats num"><span>${nb(p.jaime)} j'aime</span><span>${nb(p.com)} commentaires</span><span>${nb(p.part)} partages</span><span>${nb(p.vues)} vues</span></div>
+    <div class="meta"><span>Publiée le ${date(p.publiee_le)}</span><span>${p.categorie==='publication'?'Remontée le '+date(p.remontee_le):'Dernier passage le '+date(p.dernier_releve_le||p.remontee_le)}</span>${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">Voir la publication</a>`:''}</div>
+    ${act?`<div class="actions">${act}</div>`:''}
+  </article>`;
+}
+async function agir(id,a){
+  const {error}=await SB.rpc('action_publication',{p_id:Number(id),p_action:a});
+  if(error)return toast(error.message,true);
+  toast({suivre:'Publication suivie',ne_plus_suivre:'Publication retirée du suivi',attention:'Ajoutée aux points d’attention',retirer_attention:'Retirée des points d’attention',epingler:'Point d’attention épinglé',desepingler:'Point d’attention désépinglé'}[a]||'Fait');
+  ouvrir(S.onglet);
+}
+
+// ===== Administration =====
+function vueAdmin(){
+  const sections=[['clients','Clients'],['marques','Marques et mots-clés'],['termes','Termes en surveillance'],['comptes','Comptes'],['criteres','Critères d’alerte']];
+  if(estViral())sections.push(['image','Image de marque']);
+  if(!sections.some(s=>s[0]===S.admin))S.admin='clients';
+  $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
+    <div class="admin-grille"><div class="admin-menu">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===S.admin}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
+  $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{S.admin=b.dataset.s;vueAdmin()});
+  ({clients:admClients,marques:admMarques,termes:admTermes,comptes:admComptes,criteres:admCriteres,image:admImage}[S.admin])();
+}
+function confirmer(el,texte,action){
+  const d=document.createElement('div');d.className='confirmation';
+  d.innerHTML=`<span>${esc(texte)}</span><button class="btn danger mini" type="button">Confirmer</button><button class="btn sec mini" type="button">Annuler</button>`;
+  el.after(d);el.hidden=true;
+  const [ok,ann]=d.querySelectorAll('button');ann.onclick=()=>{d.remove();el.hidden=false};ok.onclick=async()=>{ok.disabled=true;await action();};
+}
+
+async function admClients(){
+  await chargerReferentiel();
+  const z=$('#admin-corps');
+  z.innerHTML=`<form class="bloc" id="f-client"><h3>Ajouter un client</h3>
+      <div class="row"><label>Nom du client<input type="text" id="cl-nom" required maxlength="80"></label><label>Secteur (facultatif)<input type="text" id="cl-secteur" maxlength="80"></label><button class="btn" type="submit">Ajouter</button></div></form>
+    <div class="bloc"><h3>Clients de l'agence</h3>${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Client</th><th>Secteur</th><th>Marques</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>`<tr><td>${esc(c.nom)}</td><td>${esc(c.secteur||'')}</td><td class="num">${S.marques.filter(m=>m.client_id===c.id).length}</td><td>${c.actif?'Actif':'Suspendu'}</td><td style="text-align:right;white-space:nowrap"><button class="btn sec mini" data-t="${c.id}">${c.actif?'Suspendre':'Réactiver'}</button> <button class="btn danger mini" data-s="${c.id}">Supprimer</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun client. Ajoutez le premier ci-dessus, puis ses marques.</p>'}</div>`;
+  $('#f-client').onsubmit=async e=>{e.preventDefault();const nom=$('#cl-nom').value.trim();if(nom.length<2)return toast('Indiquez le nom du client.',true);
+    const {error}=await SB.from('clients').insert({nom,secteur:$('#cl-secteur').value.trim()||null,cree_par:S.moi.email});
+    if(error)return toast(error.code==='23505'?'Ce client existe déjà.':error.message,true);toast('Client ajouté');admClients()};
+  z.querySelectorAll('[data-t]').forEach(b=>b.onclick=async()=>{const c=S.clients.find(x=>x.id==b.dataset.t);const {error}=await SB.from('clients').update({actif:!c.actif}).eq('id',c.id);if(error)return toast(error.message,true);admClients()});
+  z.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer ce client, ses marques, ses publications et ses accès ? Action définitive.',async()=>{const {error}=await SB.from('clients').delete().eq('id',b.dataset.s);if(error)return toast(error.message,true);toast('Client supprimé');admClients()}));
+}
+
+const liste=t=>t.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+async function admMarques(){
+  await chargerReferentiel();
+  const z=$('#admin-corps');
+  if(!S.clients.length){z.innerHTML='<div class="vide">Ajoutez d’abord un client.</div>';return}
+  const opt=S.clients.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('');
+  const formMarque=(m)=>`<form class="bloc" data-m="${m?m.id:''}"><h3>${m?esc(m.nom):'Ajouter une marque'}</h3>
+    <div class="row">${m?'':`<label>Client<select name="client">${opt}</select></label>`}<label>Nom de la marque<input type="text" name="nom" value="${esc(m?.nom||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" name="pays" value="${esc(m?.pays||'Côte d\'Ivoire')}"></label></div>
+    <label>Mots-clés à rechercher (un par ligne ou séparés par des virgules)<textarea name="mots">${esc((m?.mots_cles||[]).join('\n'))}</textarea></label>
+    <label>Mots à exclure (publications hors sujet)<textarea name="excl">${esc((m?.exclusions||[]).join('\n'))}</textarea></label>
+    <label>Comptes officiels (un par ligne : réseau | adresse, par exemple « Facebook | https://facebook.com/page »)<textarea name="off">${esc((m?.comptes_officiels||[]).map(o=>o.reseau+' | '+o.url).join('\n'))}</textarea></label>
+    <div class="row"><button class="btn" type="submit">${m?'Enregistrer':'Ajouter la marque'}</button>${m?`<button class="btn danger" type="button" data-sup="${m.id}">Supprimer la marque</button>`:''}</div></form>`;
+  const parClient=S.clients.map(c=>{const ms=S.marques.filter(m=>m.client_id===c.id);return ms.length?`<h3 class="muted small" style="text-transform:uppercase;letter-spacing:.05em">${esc(c.nom)}</h3>`+ms.map(formMarque).join(''):''}).join('');
+  z.innerHTML=formMarque(null)+parClient;
+  z.querySelectorAll('form[data-m]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();
+    const off=liste(f.off.value.replace(/,/g,'\n')).map(l=>{const [r,...u]=l.split('|');return {reseau:(r||'').trim(),url:u.join('|').trim()}}).filter(o=>o.reseau&&o.url);
+    const v={nom:f.nom.value.trim(),pays:f.pays.value.trim()||"Côte d'Ivoire",mots_cles:liste(f.mots.value),exclusions:liste(f.excl.value),comptes_officiels:off};
+    if(!v.nom)return toast('Indiquez le nom de la marque.',true);
+    let r;if(f.dataset.m)r=await SB.from('marques').update(v).eq('id',f.dataset.m);else r=await SB.from('marques').insert({...v,client_id:Number(f.client.value)});
+    if(r.error)return toast(r.error.code==='23505'?'Cette marque existe déjà pour ce client.':r.error.message,true);
+    toast(f.dataset.m?'Marque enregistrée':'Marque ajoutée');admMarques()});
+  z.querySelectorAll('[data-sup]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer cette marque et ses publications ? Action définitive.',async()=>{const {error}=await SB.from('marques').delete().eq('id',b.dataset.sup);if(error)return toast(error.message,true);toast('Marque supprimée');admMarques()}));
+}
+
+async function admTermes(){
+  await chargerReferentiel();
+  const z=$('#admin-corps');
+  if(!S.marques.length){z.innerHTML='<div class="vide">Ajoutez d’abord une marque.</div>';return}
+  const {data:t}=await SB.from('termes_surveilles').select('*').order('terme');
+  z.innerHTML=`<form class="bloc" id="f-terme"><h3>Ajouter un terme en surveillance</h3><p class="muted small">Un terme trouvé dans une publication ou un commentaire déclenche une alerte. Dix termes au plus par marque.</p>
+    <div class="row"><label>Marque<select id="t-marque">${S.marques.map(m=>`<option value="${m.id}">${esc(m.nom)} (${esc(nomClient(m.client_id))})</option>`).join('')}</select></label><label>Terme<input type="text" id="t-terme" maxlength="60"></label><button class="btn" type="submit">Ajouter</button></div></form>
+    <div class="bloc"><h3>Termes en surveillance</h3>${(t||[]).length?`<table class="tab"><thead><tr><th>Terme</th><th>Marque</th><th>Ajouté par</th><th></th></tr></thead><tbody>${t.map(x=>`<tr><td>${esc(x.terme)}</td><td>${esc(nomMarque(x.marque_id))}</td><td class="small muted">${esc(x.ajoute_par||'')}</td><td style="text-align:right"><button class="btn danger mini" data-st="${x.id}">Retirer</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted small">Aucun terme en surveillance.</p>'}</div>`;
+  $('#f-terme').onsubmit=async e=>{e.preventDefault();const terme=$('#t-terme').value.trim();if(terme.length<2)return toast('Le terme doit faire au moins 2 caractères.',true);
+    const m=S.marques.find(x=>x.id==$('#t-marque').value);
+    const {error}=await SB.from('termes_surveilles').insert({marque_id:m.id,client_id:m.client_id,terme});
+    if(error)return toast(error.code==='23505'?'Ce terme est déjà surveillé pour cette marque.':error.message,true);toast('Terme ajouté');admTermes()};
+  z.querySelectorAll('[data-st]').forEach(b=>b.onclick=async()=>{const {error}=await SB.from('termes_surveilles').delete().eq('id',b.dataset.st);if(error)return toast(error.message,true);admTermes()});
+}
+
+async function fonctionComptes(corps){
+  const {data:{session}}=await SB.auth.getSession();
+  const r=await fetch(SB_URL+'/functions/v1/gerer-utilisateur',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_CLE,Authorization:'Bearer '+session.access_token},body:JSON.stringify(corps)});
+  let j={};try{j=await r.json()}catch{j={ok:false,erreur:'réponse illisible'}}
+  return j;
+}
+async function admComptes(){
+  await chargerReferentiel();
+  const z=$('#admin-corps');
+  const [{data:us},{data:uc}]=await Promise.all([SB.from('utilisateurs').select('*').order('role').order('email'),SB.from('utilisateur_clients').select('*')]);
+  const roles=GERE[S.moi.role]||[];
+  const clientsDe=u=>u.role==='user_client'?nomClient(u.client_id):u.role==='user_agence'?(uc||[]).filter(x=>x.email===u.email).map(x=>nomClient(x.client_id)).join(', '):'Tous';
+  z.innerHTML=`<form class="bloc" id="f-compte"><h3>Créer un compte</h3>
+    <div class="row"><label>Adresse e-mail<input type="email" id="u-email" required></label><label>Nom<input type="text" id="u-nom" maxlength="80"></label>
+    <label>Rôle<select id="u-role">${roles.map(r=>`<option value="${r}">${ROLES[r]}</option>`).join('')}</select></label></div>
+    <div id="u-un-client" hidden><label>Client<select id="u-client">${S.clients.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('')}</select></label></div>
+    <div id="u-plusieurs" hidden><div class="small muted">Clients attribués</div><div class="clients-coches">${S.clients.map(c=>`<label><input type="checkbox" value="${c.id}">${esc(c.nom)}</label>`).join('')||'<span class="muted small">Ajoutez d’abord un client.</span>'}</div></div>
+    <p class="muted small">Un mot de passe provisoire s'affiche après la création : transmettez-le à la personne, elle en choisira un nouveau à sa première connexion.</p>
+    <div class="row"><button class="btn" type="submit" id="u-btn">Créer le compte</button></div><div id="u-resultat"></div></form>
+    <div class="bloc"><h3>Comptes</h3><div class="defile"><table class="tab"><thead><tr><th>Personne</th><th>Rôle</th><th>Clients visibles</th><th>État</th><th></th></tr></thead><tbody>
+    ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(clientsDe(u))}</td><td>${u.actif?(u.doit_changer_mdp?'En attente de première connexion':'Actif'):'Désactivé'}</td>
+    <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
+    </tbody></table></div><div id="u-res2"></div></div>`;
+  const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence'};$('#u-role').onchange=maj;maj();
+  const montrer=(el,email,mdp)=>{el.innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Mot de passe provisoire de <b>${esc(email)}</b>, affiché une seule fois :</div><div class="row"><div class="mdp">${esc(mdp)}</div><button class="btn sec" type="button">Copier</button></div><div class="small muted">Adresse de la plateforme : <span style="user-select:all">${esc(location.href.split('#')[0])}</span></div></div>`;
+    el.querySelector('button').onclick=async()=>{try{await navigator.clipboard.writeText(mdp);toast('Copié')}catch{toast('Sélectionnez le mot de passe pour le copier.')}}};
+  $('#f-compte').onsubmit=async e=>{e.preventDefault();$('#u-btn').disabled=true;
+    const role=$('#u-role').value,email=$('#u-email').value.trim().toLowerCase();
+    const j=await fonctionComptes({action:'creer',email,nom:$('#u-nom').value.trim(),role,client_id:Number($('#u-client').value)||null,clients:[...z.querySelectorAll('#u-plusieurs input:checked')].map(i=>Number(i.value))});
+    $('#u-btn').disabled=false;
+    if(!j.ok)return toast('Création impossible : '+j.erreur,true);
+    toast('Compte créé');await admComptes();montrer($('#u-resultat'),email,j.mot_de_passe)};
+  z.querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{const j=await fonctionComptes({action:'reinitialiser',email:b.dataset.r});if(!j.ok)return toast(j.erreur,true);montrer($('#u-res2'),b.dataset.r,j.mot_de_passe)});
+  z.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const u=us.find(x=>x.email===b.dataset.d);
+    const j=await fonctionComptes({action:'modifier',email:u.email,nom:u.nom,role:u.role,client_id:u.client_id,clients:(uc||[]).filter(x=>x.email===u.email).map(x=>x.client_id),actif:!u.actif});
+    if(!j.ok)return toast(j.erreur,true);toast(u.actif?'Compte désactivé':'Compte réactivé');admComptes()});
+  z.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer ce compte ?',async()=>{const j=await fonctionComptes({action:'supprimer',email:b.dataset.x});if(!j.ok)return toast(j.erreur,true);toast('Compte supprimé');admComptes()}));
+}
+
+async function admCriteres(){
+  const z=$('#admin-corps');
+  const {data:c}=await SB.from('criteres').select('*').order('ordre');
+  const groupes=[...new Set((c||[]).map(x=>x.groupe))];
+  z.innerHTML=`<div class="bloc"><h3>Critères d'alerte</h3><p class="muted small">Vous pouvez relever ces seuils pour recevoir moins d'alertes. Ils ne peuvent pas descendre sous la valeur d'origine.</p></div>`+
+    groupes.map(g=>`<div class="bloc"><h3>${esc(g)}</h3>${c.filter(x=>x.groupe===g).map(x=>`<form class="row" data-c="${esc(x.cle)}"><label style="flex:3 1 260px">${esc(x.libelle)}<input type="number" name="v" min="${x.plancher}" step="1" value="${x.valeur}"></label><span class="small muted" style="flex:0 0 auto;align-self:center">${esc(x.unite||'')} · minimum ${nb(x.plancher)}</span><button class="btn sec" type="submit">Enregistrer</button></form>`).join('')}</div>`).join('');
+  z.querySelectorAll('form[data-c]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const {error}=await SB.rpc('modifier_critere',{p_cle:f.dataset.c,p_valeur:Number(f.v.value)});if(error)return toast(error.message,true);toast('Critère enregistré')});
+}
+
+async function admImage(){
+  const p=S.params||{};const z=$('#admin-corps');
+  z.innerHTML=`<form class="bloc" id="f-image"><h3>Image de marque de la plateforme</h3><p class="muted small">Réservé à Viral. Ces réglages changent le nom, le logo et les couleurs vus par l'agence et ses clients.</p>
+    <div class="row"><label>Nom de la plateforme<input type="text" id="i-nom" value="${esc(p.nom_plateforme||'')}" maxlength="60"></label><label>Nom de l'agence<input type="text" id="i-agence" value="${esc(p.nom_agence||'')}" maxlength="60"></label></div>
+    <div class="row"><label>Couleur principale<input type="color" id="i-c1" value="${esc(p.couleur_principale||'#C6DD1F')}" style="height:40px;padding:2px"></label><label>Couleur de fond<input type="color" id="i-c2" value="${esc(p.couleur_fond||'#111111')}" style="height:40px;padding:2px"></label>
+    <label>Logo (PNG ou JPEG, 1 Mo au plus)<input type="file" id="i-logo" accept="image/png,image/jpeg,image/webp"></label></div>
+    ${p.logo_url?`<img src="${esc(p.logo_url)}" alt="Logo actuel" style="max-height:60px;max-width:240px;justify-self:start">`:''}
+    <div class="row"><button class="btn" type="submit">Enregistrer</button></div></form>`;
+  $('#f-image').onsubmit=async e=>{e.preventDefault();const v={nom_plateforme:$('#i-nom').value.trim()||'Reputation Manager',nom_agence:$('#i-agence').value.trim()||null,couleur_principale:$('#i-c1').value,couleur_fond:$('#i-c2').value,maj_le:new Date().toISOString(),maj_par:S.moi.email};
+    const fi=$('#i-logo').files[0];
+    if(fi){if(fi.size>1048576)return toast('Le logo dépasse 1 Mo.',true);
+      const chemin='logo-'+Date.now()+'.'+(fi.type.split('/')[1]||'png');
+      const up=await SB.storage.from('marque').upload(chemin,fi,{upsert:true,contentType:fi.type});
+      if(up.error)return toast('Envoi du logo impossible : '+up.error.message,true);
+      v.logo_url=SB.storage.from('marque').getPublicUrl(chemin).data.publicUrl}
+    const {error}=await SB.from('parametres').update(v).eq('id',1);if(error)return toast(error.message,true);
+    S.params={...p,...v};appliquerMarque(S.params);toast('Image de marque enregistrée');admImage()};
+}
+
+// ===== Journal (super administrateur Viral) =====
+async function vueJournal(){
+  const {data}=await SB.from('journal').select('*').order('le',{ascending:false}).limit(300);
+  $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Journal d'activité</h2><span class="muted small">300 derniers événements</span></div>
+    <div class="bloc"><div class="defile"><table class="tab"><thead><tr><th>Date</th><th>Type</th><th>Par</th><th>Détail</th></tr></thead><tbody>${(data||[]).map(j=>`<tr><td class="num small" style="white-space:nowrap">${date(j.le)}</td><td>${esc(j.type)}</td><td class="small">${esc(j.par||'')}</td><td class="small">${esc(j.detail||'')}</td></tr>`).join('')}</tbody></table></div></div></section>`;
+}
+
+SB.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){S.moi=null;afficher('connexion')}});
+demarrer();
+</script>
+</body>
+</html>
