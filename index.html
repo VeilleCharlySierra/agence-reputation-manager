@@ -51,14 +51,33 @@ label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
 .row>*{flex:1 1 180px;min-width:0}
 .row>.btn{flex:0 0 auto}
 
-/* Connexion */
-#ecran-connexion{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
-.carte-connexion{width:min(400px,100%);display:grid;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:28px}
-.carte-connexion .logo{max-height:70px;max-width:100%;justify-self:start}
-.carte-connexion h1{font-size:1.45rem}
-.erreur{color:var(--neg);font-size:.88rem;min-height:1.2em}
-.signature{font-size:.75rem;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
-
+/* Connexion : carte centrée sur fond de marque, motif du logo en filigrane */
+.ecran-marque{position:relative;min-height:100vh;display:grid;place-items:center;padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:hidden;isolation:isolate}
+.filigrane{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.filigrane i{position:absolute;display:block;background-image:var(--motif);background-repeat:no-repeat;background-size:contain;background-position:center}
+.filigrane .grappe{background-repeat:repeat;background-size:42px auto;opacity:.13;
+  -webkit-mask-image:radial-gradient(closest-side,#000 35%,transparent 100%);mask-image:radial-gradient(closest-side,#000 35%,transparent 100%)}
+.filigrane .g1{top:-40px;right:-30px;width:380px;height:300px}
+.filigrane .g2{bottom:-50px;left:-40px;width:340px;height:280px}
+.filigrane .geant{opacity:.045}
+.filigrane .s1{width:420px;height:420px;left:-150px;top:8%;transform:rotate(-14deg)}
+.filigrane .s2{width:300px;height:300px;right:-90px;bottom:6%;transform:rotate(12deg)}
+.filigrane .s3{width:110px;height:110px;right:14%;top:12%;transform:rotate(18deg);opacity:.08}
+.filigrane .s4{width:84px;height:84px;left:16%;bottom:12%;transform:rotate(-20deg);opacity:.08}
+.filigrane .halo{inset:auto;left:50%;top:50%;width:760px;height:760px;max-width:160vw;transform:translate(-50%,-50%);background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 16%,transparent),transparent 72%)}
+.carte-connexion{width:min(420px,100%);display:grid;gap:18px;justify-items:stretch;text-align:center;
+  background:color-mix(in srgb,var(--bg) 78%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:18px;padding:40px 36px 32px;
+  box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.carte-connexion .logo{max-height:96px;max-width:min(260px,100%);justify-self:center;object-fit:contain}
+.carte-connexion h1{font-size:1.2rem;letter-spacing:.02em;font-weight:500}
+.carte-connexion .trait{width:44px;height:2px;background:var(--accent);justify-self:center;border-radius:2px;margin-top:-6px}
+.carte-connexion label{text-align:left}
+.carte-connexion input{padding:11px 12px;background:color-mix(in srgb,var(--bg) 85%,#000)}
+.carte-connexion .btn{padding:12px 14px;font-size:1rem;border-radius:8px;letter-spacing:.01em}
+.carte-connexion .aide{font-size:.8rem;color:var(--muted);margin:0}
+.erreur{color:var(--neg);font-size:.88rem;min-height:1.2em;margin:-6px 0}
+@media (max-width:520px){.carte-connexion{padding:32px 22px 26px}.filigrane .g1,.filigrane .g2{width:220px;height:180px}.filigrane .s1{width:260px;height:260px}}
 /* En-tête */
 header.haut{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
@@ -133,27 +152,26 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 <body>
 
 <!-- ===== Connexion ===== -->
-<div id="ecran-connexion" hidden>
+<div id="ecran-connexion" class="ecran-marque" hidden>
+  <div class="filigrane" aria-hidden="true"><i class="halo"></i><i class="grappe g1"></i><i class="grappe g2"></i><i class="geant s1"></i><i class="geant s2"></i><i class="s3"></i><i class="s4"></i></div>
   <form class="carte-connexion" id="f-connexion" novalidate>
     <img class="logo" id="c-logo" alt="" hidden>
-    <div>
-      <h1 id="c-titre">Reputation Manager</h1>
-      <p class="muted small" id="c-agence"></p>
-    </div>
+    <h1 id="c-titre">Reputation Manager</h1>
+    <div class="trait"></div>
     <label>Adresse e-mail<input type="email" id="c-email" autocomplete="username" required></label>
     <label>Mot de passe<input type="password" id="c-mdp" autocomplete="current-password" required></label>
     <div class="erreur" id="c-erreur" role="alert"></div>
     <button class="btn" type="submit" id="c-btn">Se connecter</button>
-    <p class="muted small">Mot de passe oublié : demandez à votre administrateur de le réinitialiser.</p>
-    <div class="signature">Veille e-réputation propulsée par Viral SARL</div>
+    <p class="aide">Mot de passe oublié : votre administrateur peut le réinitialiser.</p>
   </form>
 </div>
 
 <!-- ===== Changement de mot de passe obligatoire ===== -->
 <div id="ecran-mdp" hidden>
-  <div style="min-height:100vh;display:grid;place-items:center;padding:24px 16px">
+  <div class="ecran-marque">
+    <div class="filigrane" aria-hidden="true"><i class="halo"></i><i class="grappe g1"></i><i class="grappe g2"></i><i class="geant s1"></i><i class="geant s2"></i><i class="s3"></i><i class="s4"></i></div>
     <form class="carte-connexion" id="f-mdp" novalidate>
-      <h1>Choisissez votre mot de passe</h1>
+      <h1>Choisissez votre mot de passe</h1><div class="trait"></div>
       <p class="muted small">Le mot de passe reçu était provisoire. Choisissez-en un d'au moins 10 caractères.</p>
       <label>Nouveau mot de passe<input type="password" id="m-1" autocomplete="new-password"></label>
       <label>Confirmer<input type="password" id="m-2" autocomplete="new-password"></label>
@@ -216,8 +234,8 @@ function appliquerMarque(p){
   r.setProperty('--on-accent',l>140?'#111111':'#FFFFFF');
   document.title=p.nom_plateforme||'Reputation Manager';
   for(const id of ['c-titre','h-titre'])$('#'+id).textContent=p.nom_plateforme||'Reputation Manager';
-  $('#c-agence').textContent=p.nom_agence?'Plateforme de veille e-réputation de '+p.nom_agence:'';
   $('#h-agence').textContent=p.nom_agence||'';
+  const motif=p.motif_url||p.logo_url;if(motif)r.setProperty('--motif','url("'+motif.replace(/"/g,'')+'")');
   for(const id of ['c-logo','h-logo']){const im=$('#'+id);if(p.logo_url){im.src=p.logo_url;im.alt=p.nom_agence||'';im.hidden=false}else im.hidden=true}
 }
 
