@@ -1,12 +1,12 @@
 // Agence Reputation Manager — fonction « gerer-utilisateur »
 // Crée, modifie, désactive ou supprime un compte, et réinitialise un mot de passe.
 // Règles :
-//  - super_viral gère tous les rôles ;
-//  - admin_viral gère les rôles d'agence et clients (pas les rôles Viral) ;
+//  - super_admin gère tous les rôles ;
+//  - admin_plateforme gère les rôles d'agence et clients (pas les rôles d'opérateur) ;
 //  - admin_agence gère admin_agence, user_agence et user_client ;
 //  - personne ne modifie ni ne supprime son propre compte par cette fonction.
 // Amorçage : action « amorcer » avec l'en-tête x-jeton égal à prive.cles('jeton_amorce'),
-// possible une seule fois, tant qu'aucun super_viral n'existe.
+// possible une seule fois, tant qu'aucun super_admin n'existe.
 import postgres from "npm:postgres@3.4.4";
 
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1 });
@@ -20,10 +20,10 @@ const CORS = {
 const rep = (o: unknown, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const ROLES = ["super_viral", "admin_viral", "admin_agence", "user_agence", "user_client"];
+const ROLES = ["super_admin", "admin_plateforme", "admin_agence", "user_agence", "user_client"];
 const GERE: Record<string, string[]> = {
-  super_viral: ROLES,
-  admin_viral: ["admin_agence", "user_agence", "user_client"],
+  super_admin: ROLES,
+  admin_plateforme: ["admin_agence", "user_agence", "user_client"],
   admin_agence: ["admin_agence", "user_agence", "user_client"],
 };
 
@@ -61,12 +61,12 @@ Deno.serve(async (req) => {
     if (action === "amorcer") {
       const j = await sql`select valeur from prive.cles where nom = 'jeton_amorce'`;
       if (!j.length || req.headers.get("x-jeton") !== j[0].valeur) return rep({ ok: false, erreur: "jeton invalide" }, 403);
-      const deja = await sql`select 1 from public.utilisateurs where role = 'super_viral'`;
+      const deja = await sql`select 1 from public.utilisateurs where role = 'super_admin'`;
       if (deja.length) return rep({ ok: false, erreur: "déjà amorcé" }, 409);
       const email = String(corps.email || "").trim().toLowerCase();
       const mdp = motDePasse();
       await auth("users", "POST", { email, password: mdp, email_confirm: true });
-      await sql`insert into public.utilisateurs (email, nom, role, ajoute_par) values (${email}, ${corps.nom || null}, 'super_viral', 'amorçage')`;
+      await sql`insert into public.utilisateurs (email, nom, role, ajoute_par) values (${email}, ${corps.nom || null}, 'super_admin', 'amorçage')`;
       await sql`delete from prive.cles where nom = 'jeton_amorce'`;
       await sql`insert into public.journal (type, par, detail) values ('Administration', 'amorçage', ${"Super administrateur créé : " + email})`;
       return rep({ ok: true, email, mot_de_passe: mdp });

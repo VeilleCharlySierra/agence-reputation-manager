@@ -209,16 +209,16 @@ const SB_URL='https://quheqdljsycelutylyts.supabase.co';
 const SB_CLE='sb_publishable_q0M1LL74FcfKCbvzPoBy3Q_FUmXvKfV';
 const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
 
-const ROLES={super_viral:'Super administrateur Viral',admin_viral:'Administrateur Viral',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Utilisateur client'};
-const GERE={super_viral:Object.keys(ROLES),admin_viral:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
+const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Utilisateur client'};
+const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
 const S={moi:null,params:null,clients:[],marques:[],client:'tous',onglet:'tableau',admin:'clients'};
 
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nb=v=>v==null?'—':Number(v).toLocaleString('fr-FR');
 const date=v=>v?new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).replace(' ',' à ')+' UTC':'non disponible';
-const estAdmin=()=>['super_viral','admin_viral','admin_agence'].includes(S.moi?.role);
-const estViral=()=>['super_viral','admin_viral'].includes(S.moi?.role);
+const estAdmin=()=>['super_admin','admin_plateforme','admin_agence'].includes(S.moi?.role);
+const estOperateur=()=>['super_admin','admin_plateforme'].includes(S.moi?.role);
 const peutAgir=()=>S.moi&&S.moi.role!=='user_client';
 let tt;function toast(m,ko){const t=$('#toast');t.textContent=m;t.className='toast'+(ko?' ko':'');t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,ko?7000:3500)}
 function lienSur(u){const s=String(u||'').trim();if(!s)return '';const h=/^https?:\/\//i.test(s)?s:'https://'+s;return /^https?:\/\//i.test(h)?h:''}
@@ -294,7 +294,7 @@ $('#b-compte').addEventListener('click',()=>{S.moi.doit_changer_mdp=true;$('#m-1
 function construireOnglets(){
   const o=[['tableau','Tableau de bord'],['attention','Points d’attention'],['suivies','Publications suivies'],['publications','Publications'],['officiels','Canaux officiels']];
   if(estAdmin())o.push(['admin','Administration']);
-  if(S.moi.role==='super_viral')o.push(['journal','Journal']);
+  if(S.moi.role==='super_admin')o.push(['journal','Journal']);
   $('#onglets').innerHTML=o.map(([k,l])=>`<button role="tab" data-o="${k}" aria-selected="${k===S.onglet}">${l}<span class="compteur" id="n-${k}" hidden></span></button>`).join('');
   $('#onglets').querySelectorAll('button').forEach(b=>b.onclick=()=>ouvrir(b.dataset.o));
 }
@@ -393,7 +393,7 @@ async function agir(id,a){
 // ===== Administration =====
 function vueAdmin(){
   const sections=[['clients','Clients'],['marques','Marques et mots-clés'],['termes','Termes en surveillance'],['comptes','Comptes'],['criteres','Critères d’alerte']];
-  if(estViral())sections.push(['image','Image de marque']);
+  if(estOperateur())sections.push(['image','Image de marque']);
   if(!sections.some(s=>s[0]===S.admin))S.admin='clients';
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
     <div class="admin-grille"><div class="admin-menu">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===S.admin}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
@@ -509,7 +509,7 @@ async function admCriteres(){
 
 async function admImage(){
   const p=S.params||{};const z=$('#admin-corps');
-  z.innerHTML=`<form class="bloc" id="f-image"><h3>Image de marque de la plateforme</h3><p class="muted small">Réservé à Viral. Ces réglages changent le nom, le logo et les couleurs vus par l'agence et ses clients.</p>
+  z.innerHTML=`<form class="bloc" id="f-image"><h3>Image de marque de la plateforme</h3><p class="muted small">Réservé aux administrateurs de la plateforme. Ces réglages changent le nom, le logo et les couleurs vus par l'agence et ses clients.</p>
     <div class="row"><label>Nom de la plateforme<input type="text" id="i-nom" value="${esc(p.nom_plateforme||'')}" maxlength="60"></label><label>Nom de l'agence<input type="text" id="i-agence" value="${esc(p.nom_agence||'')}" maxlength="60"></label></div>
     <div class="row"><label>Couleur principale<input type="color" id="i-c1" value="${esc(p.couleur_principale||'#C6DD1F')}" style="height:40px;padding:2px"></label><label>Couleur de fond<input type="color" id="i-c2" value="${esc(p.couleur_fond||'#111111')}" style="height:40px;padding:2px"></label>
     <label>Logo (PNG ou JPEG, 1 Mo au plus)<input type="file" id="i-logo" accept="image/png,image/jpeg,image/webp"></label></div>
@@ -526,7 +526,7 @@ async function admImage(){
     S.params={...p,...v};appliquerMarque(S.params);toast('Image de marque enregistrée');admImage()};
 }
 
-// ===== Journal (super administrateur Viral) =====
+// ===== Journal (super administrateur) =====
 async function vueJournal(){
   const {data}=await SB.from('journal').select('*').order('le',{ascending:false}).limit(300);
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Journal d'activité</h2><span class="muted small">300 derniers événements</span></div>
