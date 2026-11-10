@@ -190,7 +190,7 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
         <div><h1 id="h-titre">Reputation Manager</h1><div class="agence" id="h-agence"></div></div>
       </div>
       <div class="compte">
-        <label class="small" style="display:flex;flex-direction:row;align-items:center;gap:6px">Client
+        <label class="small" style="display:flex;flex-direction:row;align-items:center;gap:6px">Marque
           <select id="sel-client"></select></label>
         <span id="h-moi" class="muted"></span>
         <button class="btn sec mini" id="b-compte" type="button">Mon compte</button>
@@ -209,9 +209,11 @@ const SB_URL='https://quheqdljsycelutylyts.supabase.co';
 const SB_CLE='sb_publishable_q0M1LL74FcfKCbvzPoBy3Q_FUmXvKfV';
 const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
 
-const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Utilisateur client'};
+const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
-const S={moi:null,params:null,clients:[],marques:[],client:'tous',onglet:'tableau',admin:'clients'};
+const S={moi:null,clients:[],marques:[],client:'tous',onglet:'tableau',admin:'marques',adminMarque:null};
+// Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
+const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -241,8 +243,7 @@ function appliquerMarque(p){
 
 // ===== Démarrage =====
 async function demarrer(){
-  const {data:p}=await SB.from('parametres').select('*').eq('id',1).maybeSingle();
-  S.params=p;appliquerMarque(p);
+  appliquerMarque(IMAGE);
   const {data:{session}}=await SB.auth.getSession();
   if(!session)return afficher('connexion');
   await chargerProfil();
@@ -264,8 +265,8 @@ async function chargerReferentiel(){
   const [c,m]=await Promise.all([SB.from('clients').select('*').order('nom'),SB.from('marques').select('*').order('nom')]);
   S.clients=c.data||[];S.marques=m.data||[];
   const sel=$('#sel-client');
-  const opts=(S.clients.length>1?'<option value="tous">Tous les clients</option>':'')+S.clients.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('');
-  sel.innerHTML=opts||'<option value="tous">Aucun client</option>';
+  const opts=(S.clients.length>1?'<option value="tous">Toutes les marques</option>':'')+S.clients.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('');
+  sel.innerHTML=opts||'<option value="tous">Aucune marque</option>';
   if(S.client!=='tous'&&!S.clients.some(x=>String(x.id)===String(S.client)))S.client='tous';
   if(S.clients.length===1)S.client=String(S.clients[0].id);
   sel.value=S.client;sel.closest('label').hidden=S.clients.length<1;
@@ -292,7 +293,7 @@ $('#b-compte').addEventListener('click',()=>{S.moi.doit_changer_mdp=true;$('#m-1
 
 // ===== Onglets =====
 function construireOnglets(){
-  const o=[['tableau','Tableau de bord'],['attention','Points d’attention'],['suivies','Publications suivies'],['publications','Publications'],['officiels','Canaux officiels']];
+  const o=[['tableau','Tableau de bord'],['attention','Points d’attention'],['suivies','Publications suivies'],['publications','Publications'],['officiels','Canaux officiels'],['concurrents','Concurrents']];
   if(estAdmin())o.push(['admin','Administration']);
   if(S.moi.role==='super_admin')o.push(['journal','Journal']);
   $('#onglets').innerHTML=o.map(([k,l])=>`<button role="tab" data-o="${k}" aria-selected="${k===S.onglet}">${l}<span class="compteur" id="n-${k}" hidden></span></button>`).join('');
@@ -300,7 +301,7 @@ function construireOnglets(){
 }
 function ouvrir(k){
   S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
-  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),admin:vueAdmin,journal:vueJournal}[k]||vueTableau)();
+  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:()=>vueListe('concurrents'),admin:vueAdmin,journal:vueJournal}[k]||vueTableau)();
 }
 function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
 const nomMarque=id=>S.marques.find(m=>m.id===id)?.nom||'';
@@ -312,15 +313,15 @@ async function vueTableau(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const depuis=new Date(Date.now()-864e5).toISOString();
   const [p24,att,suiv]=await Promise.all([
-    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',depuis)),
-    filtreClient(SB.from('publications').select('id,marque_id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,lien').eq('categorie','attention').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
+    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',depuis).neq('type','concurrent')),
+    filtreClient(SB.from('publications').select('id,marque_id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,lien').eq('categorie','attention').neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie'))]);
   const pubs=p24.data||[],atts=att.data||[];
   const neg=pubs.filter(p=>p.sentiment==='Négatif').length,inter=pubs.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0);
   const ms=marquesVisibles();
   const lignes=ms.map(m=>{const l=pubs.filter(p=>p.marque_id===m.id),n=l.filter(p=>p.sentiment==='Négatif').length;
-    return `<tr><td>${esc(m.nom)}</td><td>${esc(nomClient(m.client_id))}</td><td class="n num">${l.length}</td><td class="n num">${l.length?Math.round(n*100/l.length)+' %':'—'}</td><td class="n num">${nb(l.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0))}</td><td class="n num">${atts.filter(a=>a.marque_id===m.id).length}</td></tr>`}).join('');
-  const titreClient=S.client==='tous'?'Tous les clients':nomClient(Number(S.client));
+    return `<tr><td>${esc(m.nom)}</td><td class="n num">${l.length}</td><td class="n num">${l.length?Math.round(n*100/l.length)+' %':'—'}</td><td class="n num">${nb(l.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0))}</td><td class="n num">${atts.filter(a=>a.marque_id===m.id).length}</td></tr>`}).join('');
+  const titreClient=S.client==='tous'?'Toutes les marques':nomClient(Number(S.client));
   c.innerHTML=`<section class="vue">
     <div class="entete-vue"><h2>Tableau de bord</h2><span class="muted small">${esc(titreClient)} · dernières 24 heures</span></div>
     <div class="chiffres">
@@ -330,8 +331,8 @@ async function vueTableau(){
       <div class="chiffre ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
       <div class="chiffre"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
     </div>
-    ${ms.length?`<div class="bloc"><h3>Par marque</h3><div class="defile"><table class="par-marque"><thead><tr><th>Marque</th><th>Client</th><th class="n">Publications</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th></tr></thead><tbody>${lignes}</tbody></table></div></div>`
-      :`<div class="vide">Aucune marque configurée pour l'instant.${estAdmin()?'<br>Ajoutez un client et ses marques dans <a href="#" id="va-admin">Administration</a>.':''}</div>`}
+    ${ms.length?`<div class="bloc"><h3>Par marque</h3><div class="defile"><table class="par-marque"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th></tr></thead><tbody>${lignes}</tbody></table></div></div>`
+      :`<div class="vide">Aucune marque suivie pour l'instant.${estAdmin()?'<br>Ajoutez une marque et paramétrez sa veille dans <a href="#" id="va-admin">Administration</a>.':''}</div>`}
     <div class="bloc"><h3>Points d'attention</h3>${atts.length?'<div class="liste">'+atts.slice(0,5).map(a=>`<div class="small"><span class="puce acc">${esc(nomMarque(a.marque_id))}</span> ${a.epingle?'<span class="puce">Épinglé</span> ':''}<b>${esc(a.auteur||'Auteur inconnu')}</b> · ${esc(a.plateforme)} · ${esc(a.titre||(a.texte||'').slice(0,120))} · <span class="num">${nb(a.com)}</span> commentaires</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
   </section>`;
   const va=$('#va-admin');if(va)va.onclick=e=>{e.preventDefault();ouvrir('admin')};
@@ -340,9 +341,10 @@ async function vueTableau(){
 
 // ===== Listes de publications =====
 const VUES={
-  attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
-  suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
+  attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
+  suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
   publications:{titre:'Publications',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
+  concurrents:{titre:'Concurrents',q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l\u2019instant. Les concurrents se déclarent dans le paramétrage de chaque marque.'},
   officiels:{titre:'Canaux officiels',q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
 async function vueListe(k){
@@ -371,7 +373,7 @@ function carte(p){
     p.categorie==='attention'?(p.epingle?`<button class="btn sec mini" data-a="desepingler" data-id="${p.id}">Désépingler</button>`:`<button class="btn sec mini" data-a="epingler" data-id="${p.id}">Épingler</button>`)+`<button class="btn sec mini" data-a="retirer_attention" data-id="${p.id}">Retirer des points d'attention</button>`:''
   ].join(''):'';
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
-    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}
+    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}
       <span><b>${esc(p.auteur||'Auteur inconnu')}</b> · ${esc(p.plateforme)}</span>
       <span>${p.origine==='humaine'?'Remontée humaine':'Remontée automatisée'}</span>
       ${p.theme?`<span>${esc(p.theme)}</span>`:''}${p.lieu?`<span>${esc(p.lieu)}</span>`:''}</div>
@@ -392,13 +394,12 @@ async function agir(id,a){
 
 // ===== Administration =====
 function vueAdmin(){
-  const sections=[['clients','Clients'],['marques','Marques et mots-clés'],['termes','Termes en surveillance'],['comptes','Comptes'],['criteres','Critères d’alerte']];
-  if(estOperateur())sections.push(['image','Image de marque']);
-  if(!sections.some(s=>s[0]===S.admin))S.admin='clients';
+  const sections=[['marques','Marques suivies'],['comptes','Comptes']];
+  if(S.admin==='marque'&&!S.clients.some(c=>c.id===S.adminMarque))S.admin='marques';
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
-    <div class="admin-grille"><div class="admin-menu">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===S.admin}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
+    <div class="admin-grille"><div class="admin-menu">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===S.admin||(k==='marques'&&S.admin==='marque')}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{S.admin=b.dataset.s;vueAdmin()});
-  ({clients:admClients,marques:admMarques,termes:admTermes,comptes:admComptes,criteres:admCriteres,image:admImage}[S.admin])();
+  ({marques:admMarques,marque:admFiche,comptes:admComptes}[S.admin]||admMarques)();
 }
 function confirmer(el,texte,action){
   const d=document.createElement('div');d.className='confirmation';
@@ -406,57 +407,103 @@ function confirmer(el,texte,action){
   el.after(d);el.hidden=true;
   const [ok,ann]=d.querySelectorAll('button');ann.onclick=()=>{d.remove();el.hidden=false};ok.onclick=async()=>{ok.disabled=true;await action();};
 }
+const liste=t=>String(t||'').split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+const lignesComptes=t=>String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const [r,...u]=l.split('|');return {reseau:(r||'').trim(),url:u.join('|').trim()}}).filter(o=>o.reseau&&o.url);
+const texteComptes=a=>(a||[]).map(o=>o.reseau+' | '+o.url).join('\n');
 
-async function admClients(){
-  await chargerReferentiel();
-  const z=$('#admin-corps');
-  z.innerHTML=`<form class="bloc" id="f-client"><h3>Ajouter un client</h3>
-      <div class="row"><label>Nom du client<input type="text" id="cl-nom" required maxlength="80"></label><label>Secteur (facultatif)<input type="text" id="cl-secteur" maxlength="80"></label><button class="btn" type="submit">Ajouter</button></div></form>
-    <div class="bloc"><h3>Clients de l'agence</h3>${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Client</th><th>Secteur</th><th>Marques</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>`<tr><td>${esc(c.nom)}</td><td>${esc(c.secteur||'')}</td><td class="num">${S.marques.filter(m=>m.client_id===c.id).length}</td><td>${c.actif?'Actif':'Suspendu'}</td><td style="text-align:right;white-space:nowrap"><button class="btn sec mini" data-t="${c.id}">${c.actif?'Suspendre':'Réactiver'}</button> <button class="btn danger mini" data-s="${c.id}">Supprimer</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun client. Ajoutez le premier ci-dessus, puis ses marques.</p>'}</div>`;
-  $('#f-client').onsubmit=async e=>{e.preventDefault();const nom=$('#cl-nom').value.trim();if(nom.length<2)return toast('Indiquez le nom du client.',true);
-    const {error}=await SB.from('clients').insert({nom,secteur:$('#cl-secteur').value.trim()||null,cree_par:S.moi.email});
-    if(error)return toast(error.code==='23505'?'Ce client existe déjà.':error.message,true);toast('Client ajouté');admClients()};
-  z.querySelectorAll('[data-t]').forEach(b=>b.onclick=async()=>{const c=S.clients.find(x=>x.id==b.dataset.t);const {error}=await SB.from('clients').update({actif:!c.actif}).eq('id',c.id);if(error)return toast(error.message,true);admClients()});
-  z.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer ce client, ses marques, ses publications et ses accès ? Action définitive.',async()=>{const {error}=await SB.from('clients').delete().eq('id',b.dataset.s);if(error)return toast(error.message,true);toast('Client supprimé');admClients()}));
-}
-
-const liste=t=>t.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+// ---- Liste des marques suivies ----
 async function admMarques(){
   await chargerReferentiel();
+  const [{data:quota},{data:us},{data:uc}]=await Promise.all([SB.rpc('quota_marques'),SB.from('utilisateurs').select('email,role,client_id'),SB.from('utilisateur_clients').select('*')]);
+  const plein=quota!=null&&S.clients.length>=quota;
+  const nbUtil=id=>(us||[]).filter(u=>u.role==='user_client'&&u.client_id===id).length+(uc||[]).filter(x=>x.client_id===id).length;
   const z=$('#admin-corps');
-  if(!S.clients.length){z.innerHTML='<div class="vide">Ajoutez d’abord un client.</div>';return}
-  const opt=S.clients.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('');
-  const formMarque=(m)=>`<form class="bloc" data-m="${m?m.id:''}"><h3>${m?esc(m.nom):'Ajouter une marque'}</h3>
-    <div class="row">${m?'':`<label>Client<select name="client">${opt}</select></label>`}<label>Nom de la marque<input type="text" name="nom" value="${esc(m?.nom||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" name="pays" value="${esc(m?.pays||'Côte d\'Ivoire')}"></label></div>
-    <label>Mots-clés à rechercher (un par ligne ou séparés par des virgules)<textarea name="mots">${esc((m?.mots_cles||[]).join('\n'))}</textarea></label>
-    <label>Mots à exclure (publications hors sujet)<textarea name="excl">${esc((m?.exclusions||[]).join('\n'))}</textarea></label>
-    <label>Comptes officiels (un par ligne : réseau | adresse, par exemple « Facebook | https://facebook.com/page »)<textarea name="off">${esc((m?.comptes_officiels||[]).map(o=>o.reseau+' | '+o.url).join('\n'))}</textarea></label>
-    <div class="row"><button class="btn" type="submit">${m?'Enregistrer':'Ajouter la marque'}</button>${m?`<button class="btn danger" type="button" data-sup="${m.id}">Supprimer la marque</button>`:''}</div></form>`;
-  const parClient=S.clients.map(c=>{const ms=S.marques.filter(m=>m.client_id===c.id);return ms.length?`<h3 class="muted small" style="text-transform:uppercase;letter-spacing:.05em">${esc(c.nom)}</h3>`+ms.map(formMarque).join(''):''}).join('');
-  z.innerHTML=formMarque(null)+parClient;
-  z.querySelectorAll('form[data-m]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();
-    const off=liste(f.off.value.replace(/,/g,'\n')).map(l=>{const [r,...u]=l.split('|');return {reseau:(r||'').trim(),url:u.join('|').trim()}}).filter(o=>o.reseau&&o.url);
-    const v={nom:f.nom.value.trim(),pays:f.pays.value.trim()||"Côte d'Ivoire",mots_cles:liste(f.mots.value),exclusions:liste(f.excl.value),comptes_officiels:off};
-    if(!v.nom)return toast('Indiquez le nom de la marque.',true);
-    let r;if(f.dataset.m)r=await SB.from('marques').update(v).eq('id',f.dataset.m);else r=await SB.from('marques').insert({...v,client_id:Number(f.client.value)});
-    if(r.error)return toast(r.error.code==='23505'?'Cette marque existe déjà pour ce client.':r.error.message,true);
-    toast(f.dataset.m?'Marque enregistrée':'Marque ajoutée');admMarques()});
-  z.querySelectorAll('[data-sup]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer cette marque et ses publications ? Action définitive.',async()=>{const {error}=await SB.from('marques').delete().eq('id',b.dataset.sup);if(error)return toast(error.message,true);toast('Marque supprimée');admMarques()}));
+  z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Marques suivies</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota}</span>`:''}</div>
+    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th>Mots-clés</th><th>Utilisateurs dédiés</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><b>${esc(c.nom)}</b></td><td>${esc(c.secteur||'')}</td><td class="num">${(f?.mots_cles||[]).length}</td><td class="num">${nbUtil(c.id)}</td><td>${c.actif?'Suivie':'Suspendue'}</td><td style="text-align:right"><button class="btn mini" data-p="${c.id}">Paramétrer</button></td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted small">Aucune marque suivie. Ajoutez la première ci-dessous, puis paramétrez sa veille.</p>'}</div>
+    <form class="bloc" id="f-client"><h3>Ajouter une marque à suivre</h3>
+      ${plein?`<p class="muted small">Votre forfait permet de suivre ${quota} marques. Suspendez ou supprimez une marque pour en ajouter une autre.</p>`:''}
+      <div class="row"><label>Nom de la marque<input type="text" id="cl-nom" maxlength="80" ${plein?'disabled':''}></label><label>Secteur (facultatif)<input type="text" id="cl-secteur" maxlength="80" ${plein?'disabled':''}></label><button class="btn" type="submit" ${plein?'disabled':''}>Ajouter et paramétrer</button></div></form>`;
+  $('#f-client').onsubmit=async e=>{e.preventDefault();const nom=$('#cl-nom').value.trim();if(nom.length<2)return toast('Indiquez le nom de la marque.',true);
+    const {data,error}=await SB.from('clients').insert({nom,secteur:$('#cl-secteur').value.trim()||null,cree_par:S.moi.email}).select().single();
+    if(error)return toast(error.code==='23505'?'Cette marque est déjà suivie.':error.message,true);
+    toast('Marque ajoutée : paramétrez sa veille');await chargerReferentiel();S.admin='marque';S.adminMarque=data.id;vueAdmin()};
+  z.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{S.admin='marque';S.adminMarque=Number(b.dataset.p);vueAdmin()});
 }
 
-async function admTermes(){
+// ---- Fiche de paramétrage d'une marque ----
+async function admFiche(){
   await chargerReferentiel();
+  const c=S.clients.find(x=>x.id===S.adminMarque);if(!c){S.admin='marques';return vueAdmin()}
+  const f=S.marques.find(m=>m.client_id===c.id)||{};
+  const [{data:hat},{data:conc},{data:ter},{data:crit},{data:cm},{data:us},{data:uc}]=await Promise.all([
+    SB.from('haters').select('*').eq('client_id',c.id).order('nom'),
+    SB.from('concurrents').select('*').eq('client_id',c.id).order('nom'),
+    SB.from('termes_surveilles').select('*').eq('client_id',c.id).order('terme'),
+    SB.from('criteres').select('*').order('ordre'),
+    SB.from('criteres_marque').select('*').eq('client_id',c.id),
+    SB.from('utilisateurs').select('*').order('email'),
+    SB.from('utilisateur_clients').select('*').eq('client_id',c.id)]);
+  const voient=(us||[]).filter(u=>(u.role==='user_client'&&u.client_id===c.id)||(uc||[]).some(x=>x.email===u.email));
+  const valeur=k=>(cm||[]).find(x=>x.cle===k)?.valeur;
+  const groupes=[...new Set((crit||[]).map(x=>x.groupe))];
   const z=$('#admin-corps');
-  if(!S.marques.length){z.innerHTML='<div class="vide">Ajoutez d’abord une marque.</div>';return}
-  const {data:t}=await SB.from('termes_surveilles').select('*').order('terme');
-  z.innerHTML=`<form class="bloc" id="f-terme"><h3>Ajouter un terme en surveillance</h3><p class="muted small">Un terme trouvé dans une publication ou un commentaire déclenche une alerte. Dix termes au plus par marque.</p>
-    <div class="row"><label>Marque<select id="t-marque">${S.marques.map(m=>`<option value="${m.id}">${esc(m.nom)} (${esc(nomClient(m.client_id))})</option>`).join('')}</select></label><label>Terme<input type="text" id="t-terme" maxlength="60"></label><button class="btn" type="submit">Ajouter</button></div></form>
-    <div class="bloc"><h3>Termes en surveillance</h3>${(t||[]).length?`<table class="tab"><thead><tr><th>Terme</th><th>Marque</th><th>Ajouté par</th><th></th></tr></thead><tbody>${t.map(x=>`<tr><td>${esc(x.terme)}</td><td>${esc(nomMarque(x.marque_id))}</td><td class="small muted">${esc(x.ajoute_par||'')}</td><td style="text-align:right"><button class="btn danger mini" data-st="${x.id}">Retirer</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted small">Aucun terme en surveillance.</p>'}</div>`;
-  $('#f-terme').onsubmit=async e=>{e.preventDefault();const terme=$('#t-terme').value.trim();if(terme.length<2)return toast('Le terme doit faire au moins 2 caractères.',true);
-    const m=S.marques.find(x=>x.id==$('#t-marque').value);
-    const {error}=await SB.from('termes_surveilles').insert({marque_id:m.id,client_id:m.client_id,terme});
-    if(error)return toast(error.code==='23505'?'Ce terme est déjà surveillé pour cette marque.':error.message,true);toast('Terme ajouté');admTermes()};
-  z.querySelectorAll('[data-st]').forEach(b=>b.onclick=async()=>{const {error}=await SB.from('termes_surveilles').delete().eq('id',b.dataset.st);if(error)return toast(error.message,true);admTermes()});
+  z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">${esc(c.nom)}</h3><button class="btn sec mini" id="retour" type="button">Toutes les marques</button></div>
+      <form class="row" id="f-ident"><label>Nom de la marque<input type="text" name="nom" value="${esc(c.nom)}" maxlength="80"></label><label>Secteur<input type="text" name="secteur" value="${esc(c.secteur||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" name="pays" value="${esc(f.pays||"Côte d'Ivoire")}"></label><button class="btn sec" type="submit">Enregistrer</button></form></div>
+
+    <form class="bloc" id="f-recherche"><h3>Mots-clés de la veille</h3>
+      <label>Mots-clés à rechercher (un par ligne)<textarea name="mots">${esc((f.mots_cles||[]).join('\n'))}</textarea></label>
+      <label>Mots à exclure : une publication qui les contient est écartée (un par ligne)<textarea name="excl">${esc((f.exclusions||[]).join('\n'))}</textarea></label>
+      <div class="row"><button class="btn" type="submit">Enregistrer les mots-clés</button></div></form>
+
+    <form class="bloc" id="f-officiels"><h3>Comptes officiels de la marque</h3>
+      <label>Un compte par ligne : réseau | adresse (par exemple « Facebook | https://facebook.com/marque »)<textarea name="off">${esc(texteComptes(f.comptes_officiels))}</textarea></label>
+      <div class="row"><button class="btn" type="submit">Enregistrer les comptes officiels</button></div></form>
+
+    <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d'un hater sur la marque devient un point d'attention.</p>
+      ${(hat||[]).length?`<table class="tab"><tbody>${hat.map(h=>`<tr><td>${esc(h.nom)}</td><td>${esc(h.reseau)}</td><td class="small">${lienSur(h.url)?`<a href="${esc(lienSur(h.url))}" target="_blank" rel="noopener">Profil</a>`:''}</td><td style="text-align:right"><button class="btn danger mini" data-h="${h.id}">Retirer</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted small">Aucun hater enregistré.</p>'}
+      <form class="row" id="f-hater"><label>Réseau<select name="reseau"><option>Facebook</option><option>TikTok</option><option>X</option></select></label><label>Nom du profil<input type="text" name="nom" maxlength="120"></label><label>Adresse du profil<input type="text" name="url"></label><button class="btn sec" type="submit">Ajouter</button></form></div>
+
+    <div class="bloc"><h3>Concurrents</h3><p class="muted small">Leurs publications apparaissent dans l'onglet Concurrents.</p>
+      ${(conc||[]).map(k=>`<form class="bloc" style="background:var(--bg)" data-k="${k.id}"><div class="row"><label>Concurrent<input type="text" name="nom" value="${esc(k.nom)}" maxlength="80"></label></div>
+        <label>Mots-clés (un par ligne)<textarea name="mots">${esc((k.mots_cles||[]).join('\n'))}</textarea></label>
+        <label>Comptes officiels (réseau | adresse, un par ligne)<textarea name="off">${esc(texteComptes(k.comptes))}</textarea></label>
+        <div class="row"><button class="btn sec" type="submit">Enregistrer</button><button class="btn danger" type="button" data-ks="${k.id}">Retirer ce concurrent</button></div></form>`).join('')}
+      <form class="row" id="f-conc"><label>Nouveau concurrent<input type="text" name="nom" maxlength="80"></label><button class="btn sec" type="submit">Ajouter</button></form></div>
+
+    <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Un terme trouvé dans une publication ou un commentaire déclenche une alerte immédiate. Dix termes au plus.</p>
+      ${(ter||[]).length?`<div class="filtres">${ter.map(t=>`<span class="puce">${esc(t.terme)} <button class="btn sec mini" style="padding:0 6px;border:0" data-t="${t.id}" aria-label="Retirer ${esc(t.terme)}">×</button></span>`).join('')}</div>`:'<p class="muted small">Aucun terme en surveillance.</p>'}
+      <form class="row" id="f-terme"><label>Terme<input type="text" name="terme" maxlength="60"></label><button class="btn sec" type="submit">Ajouter</button></form></div>
+
+    <div class="bloc"><h3>Critères de suivi et de points d'attention</h3><p class="muted small">Relevez un seuil pour recevoir moins d'alertes sur cette marque. Il ne peut pas descendre sous le minimum de la plateforme.</p>
+      ${groupes.map(g=>`<div style="display:grid;gap:8px"><div class="small" style="text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">${esc(g)}</div>${crit.filter(x=>x.groupe===g).map(x=>`<form class="row" data-c="${esc(x.cle)}"><label style="flex:3 1 260px">${esc(x.libelle)}<input type="number" name="v" min="${x.plancher}" step="1" value="${valeur(x.cle)??x.valeur}"></label><span class="small muted" style="flex:0 0 auto;align-self:center">${esc(x.unite||'')} · minimum ${nb(x.plancher)}</span><button class="btn sec" type="submit">Enregistrer</button></form>`).join('')}</div>`).join('')}</div>
+
+    <div class="bloc"><h3>Utilisateurs de la marque</h3>
+      ${voient.length?`<table class="tab"><tbody>${voient.map(u=>`<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td></tr>`).join('')}</tbody></table>`:'<p class="muted small">Aucun utilisateur dédié. Les administrateurs de l’agence voient déjà toutes les marques.</p>'}
+      <form class="row" id="f-umarque"><label>Adresse e-mail<input type="email" name="email"></label><label>Nom<input type="text" name="nom" maxlength="80"></label><button class="btn sec" type="submit">Créer un accès marque</button></form>
+      <div class="small muted">Un accès marque ne voit que ${esc(c.nom)}. Pour un utilisateur de l'agence qui suit plusieurs marques, passez par Comptes.</div>
+      <div id="u-res-marque"></div></div>`;
+
+  $('#retour').onclick=()=>{S.admin='marques';vueAdmin()};
+  const ok=(r,m)=>{if(r.error){toast(r.error.code==='23505'?'Ce nom existe déjà.':r.error.message,true);return false}toast(m);return true};
+  $('#f-ident').onsubmit=async e=>{e.preventDefault();const t=e.target;
+    if(ok(await SB.from('clients').update({nom:t.nom.value.trim(),secteur:t.secteur.value.trim()||null}).eq('id',c.id),'Marque enregistrée')){await SB.from('marques').update({pays:t.pays.value.trim()||"Côte d'Ivoire"}).eq('client_id',c.id);admFiche()}};
+  $('#f-recherche').onsubmit=async e=>{e.preventDefault();const t=e.target;ok(await SB.from('marques').update({mots_cles:liste(t.mots.value.replace(/,/g,'\n')),exclusions:liste(t.excl.value.replace(/,/g,'\n'))}).eq('client_id',c.id),'Mots-clés enregistrés')};
+  $('#f-officiels').onsubmit=async e=>{e.preventDefault();ok(await SB.from('marques').update({comptes_officiels:lignesComptes(e.target.off.value)}).eq('client_id',c.id),'Comptes officiels enregistrés')};
+  $('#f-hater').onsubmit=async e=>{e.preventDefault();const t=e.target;if(!t.nom.value.trim())return toast('Indiquez le nom du profil.',true);
+    if(ok(await SB.from('haters').insert({client_id:c.id,reseau:t.reseau.value,nom:t.nom.value.trim(),url:t.url.value.trim()||null,ajoute_par:S.moi.email}),'Hater ajouté'))admFiche()};
+  z.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{if(ok(await SB.from('haters').delete().eq('id',b.dataset.h),'Hater retiré'))admFiche()});
+  $('#f-conc').onsubmit=async e=>{e.preventDefault();const n=e.target.nom.value.trim();if(!n)return toast('Indiquez le nom du concurrent.',true);
+    if(ok(await SB.from('concurrents').insert({client_id:c.id,nom:n}),'Concurrent ajouté : indiquez ses mots-clés et ses comptes'))admFiche()};
+  z.querySelectorAll('form[data-k]').forEach(fk=>fk.onsubmit=async e=>{e.preventDefault();
+    ok(await SB.from('concurrents').update({nom:fk.nom.value.trim(),mots_cles:liste(fk.mots.value.replace(/,/g,'\n')),comptes:lignesComptes(fk.off.value)}).eq('id',fk.dataset.k),'Concurrent enregistré')});
+  z.querySelectorAll('[data-ks]').forEach(b=>b.onclick=()=>confirmer(b,'Retirer ce concurrent de la veille ?',async()=>{if(ok(await SB.from('concurrents').delete().eq('id',b.dataset.ks),'Concurrent retiré'))admFiche()}));
+  $('#f-terme').onsubmit=async e=>{e.preventDefault();const t=e.target.terme.value.trim();if(t.length<2)return toast('Le terme doit faire au moins 2 caractères.',true);
+    if(ok(await SB.from('termes_surveilles').insert({marque_id:f.id,client_id:c.id,terme:t}),'Terme ajouté'))admFiche()};
+  z.querySelectorAll('[data-t]').forEach(b=>b.onclick=async()=>{if(ok(await SB.from('termes_surveilles').delete().eq('id',b.dataset.t),'Terme retiré'))admFiche()});
+  z.querySelectorAll('form[data-c]').forEach(fc=>fc.onsubmit=async e=>{e.preventDefault();const r=await SB.rpc('modifier_critere',{p_cle:fc.dataset.c,p_valeur:Number(fc.v.value),p_client:c.id});ok(r,'Critère enregistré')});
+  $('#f-umarque').onsubmit=async e=>{e.preventDefault();const t=e.target,email=t.email.value.trim().toLowerCase();
+    const j=await fonctionComptes({action:'creer',email,nom:t.nom.value.trim(),role:'user_client',client_id:c.id});
+    if(!j.ok)return toast('Création impossible : '+j.erreur,true);toast('Accès marque créé');await admFiche();montrerMdp($('#u-res-marque'),email,j.mot_de_passe)};
 }
 
 async function fonctionComptes(corps){
@@ -465,65 +512,42 @@ async function fonctionComptes(corps){
   let j={};try{j=await r.json()}catch{j={ok:false,erreur:'réponse illisible'}}
   return j;
 }
+function montrerMdp(el,email,mdp){
+  el.innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Mot de passe provisoire de <b>${esc(email)}</b>, affiché une seule fois :</div><div class="row"><div class="mdp">${esc(mdp)}</div><button class="btn sec" type="button">Copier</button></div><div class="small muted">Adresse de la plateforme : <span style="user-select:all">${esc(location.href.split('#')[0])}</span></div></div>`;
+  el.querySelector('button').onclick=async()=>{try{await navigator.clipboard.writeText(mdp);toast('Copié')}catch{toast('Sélectionnez le mot de passe pour le copier.')}};
+}
+
+// ---- Comptes ----
 async function admComptes(){
   await chargerReferentiel();
   const z=$('#admin-corps');
   const [{data:us},{data:uc}]=await Promise.all([SB.from('utilisateurs').select('*').order('role').order('email'),SB.from('utilisateur_clients').select('*')]);
   const roles=GERE[S.moi.role]||[];
-  const clientsDe=u=>u.role==='user_client'?nomClient(u.client_id):u.role==='user_agence'?(uc||[]).filter(x=>x.email===u.email).map(x=>nomClient(x.client_id)).join(', '):'Tous';
+  const voit=u=>u.role==='user_client'?nomClient(u.client_id):u.role==='user_agence'?(uc||[]).filter(x=>x.email===u.email).map(x=>nomClient(x.client_id)).join(', '):'Toutes les marques';
   z.innerHTML=`<form class="bloc" id="f-compte"><h3>Créer un compte</h3>
-    <div class="row"><label>Adresse e-mail<input type="email" id="u-email" required></label><label>Nom<input type="text" id="u-nom" maxlength="80"></label>
+    <div class="row"><label>Adresse e-mail<input type="email" id="u-email"></label><label>Nom<input type="text" id="u-nom" maxlength="80"></label>
     <label>Rôle<select id="u-role">${roles.map(r=>`<option value="${r}">${ROLES[r]}</option>`).join('')}</select></label></div>
-    <div id="u-un-client" hidden><label>Client<select id="u-client">${S.clients.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('')}</select></label></div>
-    <div id="u-plusieurs" hidden><div class="small muted">Clients attribués</div><div class="clients-coches">${S.clients.map(c=>`<label><input type="checkbox" value="${c.id}">${esc(c.nom)}</label>`).join('')||'<span class="muted small">Ajoutez d’abord un client.</span>'}</div></div>
-    <p class="muted small">Un mot de passe provisoire s'affiche après la création : transmettez-le à la personne, elle en choisira un nouveau à sa première connexion.</p>
+    <div id="u-un-client" hidden><label>Marque<select id="u-client">${S.clients.map(c=>`<option value="${c.id}">${esc(c.nom)}</option>`).join('')}</select></label></div>
+    <div id="u-plusieurs" hidden><div class="small muted">Marques visibles</div><div class="clients-coches">${S.clients.map(c=>`<label><input type="checkbox" value="${c.id}">${esc(c.nom)}</label>`).join('')||'<span class="muted small">Ajoutez d’abord une marque suivie.</span>'}</div></div>
+    <p class="muted small" id="u-aide"></p>
     <div class="row"><button class="btn" type="submit" id="u-btn">Créer le compte</button></div><div id="u-resultat"></div></form>
-    <div class="bloc"><h3>Comptes</h3><div class="defile"><table class="tab"><thead><tr><th>Personne</th><th>Rôle</th><th>Clients visibles</th><th>État</th><th></th></tr></thead><tbody>
-    ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(clientsDe(u))}</td><td>${u.actif?(u.doit_changer_mdp?'En attente de première connexion':'Actif'):'Désactivé'}</td>
+    <div class="bloc"><h3>Comptes</h3><div class="defile"><table class="tab"><thead><tr><th>Personne</th><th>Rôle</th><th>Marques visibles</th><th>État</th><th></th></tr></thead><tbody>
+    ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(voit(u))}</td><td>${u.actif?'Actif':'Désactivé'}</td>
     <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
     </tbody></table></div><div id="u-res2"></div></div>`;
-  const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence'};$('#u-role').onchange=maj;maj();
-  const montrer=(el,email,mdp)=>{el.innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Mot de passe provisoire de <b>${esc(email)}</b>, affiché une seule fois :</div><div class="row"><div class="mdp">${esc(mdp)}</div><button class="btn sec" type="button">Copier</button></div><div class="small muted">Adresse de la plateforme : <span style="user-select:all">${esc(location.href.split('#')[0])}</span></div></div>`;
-    el.querySelector('button').onclick=async()=>{try{await navigator.clipboard.writeText(mdp);toast('Copié')}catch{toast('Sélectionnez le mot de passe pour le copier.')}}};
+  const AIDE={admin_agence:'Voit et paramètre toutes les marques de l’agence, et gère les comptes.',user_agence:'Membre de l’agence : voit les marques cochées, peut suivre, épingler et signaler des points d’attention.',user_client:'Accès réservé à une marque : consultation de sa seule veille.',admin_plateforme:'Administration de la plateforme.',super_admin:'Accès complet, journal compris.'};
+  const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence';$('#u-aide').textContent=AIDE[r]||''};$('#u-role').onchange=maj;maj();
   $('#f-compte').onsubmit=async e=>{e.preventDefault();$('#u-btn').disabled=true;
     const role=$('#u-role').value,email=$('#u-email').value.trim().toLowerCase();
     const j=await fonctionComptes({action:'creer',email,nom:$('#u-nom').value.trim(),role,client_id:Number($('#u-client').value)||null,clients:[...z.querySelectorAll('#u-plusieurs input:checked')].map(i=>Number(i.value))});
     $('#u-btn').disabled=false;
     if(!j.ok)return toast('Création impossible : '+j.erreur,true);
-    toast('Compte créé');await admComptes();montrer($('#u-resultat'),email,j.mot_de_passe)};
-  z.querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{const j=await fonctionComptes({action:'reinitialiser',email:b.dataset.r});if(!j.ok)return toast(j.erreur,true);montrer($('#u-res2'),b.dataset.r,j.mot_de_passe)});
+    toast('Compte créé');await admComptes();montrerMdp($('#u-resultat'),email,j.mot_de_passe)};
+  z.querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{const j=await fonctionComptes({action:'reinitialiser',email:b.dataset.r});if(!j.ok)return toast(j.erreur,true);montrerMdp($('#u-res2'),b.dataset.r,j.mot_de_passe)});
   z.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const u=us.find(x=>x.email===b.dataset.d);
     const j=await fonctionComptes({action:'modifier',email:u.email,nom:u.nom,role:u.role,client_id:u.client_id,clients:(uc||[]).filter(x=>x.email===u.email).map(x=>x.client_id),actif:!u.actif});
     if(!j.ok)return toast(j.erreur,true);toast(u.actif?'Compte désactivé':'Compte réactivé');admComptes()});
   z.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>confirmer(b,'Supprimer ce compte ?',async()=>{const j=await fonctionComptes({action:'supprimer',email:b.dataset.x});if(!j.ok)return toast(j.erreur,true);toast('Compte supprimé');admComptes()}));
-}
-
-async function admCriteres(){
-  const z=$('#admin-corps');
-  const {data:c}=await SB.from('criteres').select('*').order('ordre');
-  const groupes=[...new Set((c||[]).map(x=>x.groupe))];
-  z.innerHTML=`<div class="bloc"><h3>Critères d'alerte</h3><p class="muted small">Vous pouvez relever ces seuils pour recevoir moins d'alertes. Ils ne peuvent pas descendre sous la valeur d'origine.</p></div>`+
-    groupes.map(g=>`<div class="bloc"><h3>${esc(g)}</h3>${c.filter(x=>x.groupe===g).map(x=>`<form class="row" data-c="${esc(x.cle)}"><label style="flex:3 1 260px">${esc(x.libelle)}<input type="number" name="v" min="${x.plancher}" step="1" value="${x.valeur}"></label><span class="small muted" style="flex:0 0 auto;align-self:center">${esc(x.unite||'')} · minimum ${nb(x.plancher)}</span><button class="btn sec" type="submit">Enregistrer</button></form>`).join('')}</div>`).join('');
-  z.querySelectorAll('form[data-c]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const {error}=await SB.rpc('modifier_critere',{p_cle:f.dataset.c,p_valeur:Number(f.v.value)});if(error)return toast(error.message,true);toast('Critère enregistré')});
-}
-
-async function admImage(){
-  const p=S.params||{};const z=$('#admin-corps');
-  z.innerHTML=`<form class="bloc" id="f-image"><h3>Image de marque de la plateforme</h3><p class="muted small">Réservé aux administrateurs de la plateforme. Ces réglages changent le nom, le logo et les couleurs vus par l'agence et ses clients.</p>
-    <div class="row"><label>Nom de la plateforme<input type="text" id="i-nom" value="${esc(p.nom_plateforme||'')}" maxlength="60"></label><label>Nom de l'agence<input type="text" id="i-agence" value="${esc(p.nom_agence||'')}" maxlength="60"></label></div>
-    <div class="row"><label>Couleur principale<input type="color" id="i-c1" value="${esc(p.couleur_principale||'#C6DD1F')}" style="height:40px;padding:2px"></label><label>Couleur de fond<input type="color" id="i-c2" value="${esc(p.couleur_fond||'#111111')}" style="height:40px;padding:2px"></label>
-    <label>Logo (PNG ou JPEG, 1 Mo au plus)<input type="file" id="i-logo" accept="image/png,image/jpeg,image/webp"></label></div>
-    ${p.logo_url?`<img src="${esc(p.logo_url)}" alt="Logo actuel" style="max-height:60px;max-width:240px;justify-self:start">`:''}
-    <div class="row"><button class="btn" type="submit">Enregistrer</button></div></form>`;
-  $('#f-image').onsubmit=async e=>{e.preventDefault();const v={nom_plateforme:$('#i-nom').value.trim()||'Reputation Manager',nom_agence:$('#i-agence').value.trim()||null,couleur_principale:$('#i-c1').value,couleur_fond:$('#i-c2').value,maj_le:new Date().toISOString(),maj_par:S.moi.email};
-    const fi=$('#i-logo').files[0];
-    if(fi){if(fi.size>1048576)return toast('Le logo dépasse 1 Mo.',true);
-      const chemin='logo-'+Date.now()+'.'+(fi.type.split('/')[1]||'png');
-      const up=await SB.storage.from('marque').upload(chemin,fi,{upsert:true,contentType:fi.type});
-      if(up.error)return toast('Envoi du logo impossible : '+up.error.message,true);
-      v.logo_url=SB.storage.from('marque').getPublicUrl(chemin).data.publicUrl}
-    const {error}=await SB.from('parametres').update(v).eq('id',1);if(error)return toast(error.message,true);
-    S.params={...p,...v};appliquerMarque(S.params);toast('Image de marque enregistrée');admImage()};
 }
 
 // ===== Journal (super administrateur) =====
