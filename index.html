@@ -211,7 +211,7 @@ const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefr
 
 const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
-const S={moi:null,clients:[],marques:[],client:'tous',onglet:'tableau',admin:'marques',adminMarque:null};
+const S={moi:null,clients:[],marques:[],client:'tous',periode:24,onglet:'tableau',admin:'marques',adminMarque:null};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
@@ -303,6 +303,7 @@ function ouvrir(k){
   S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
   ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:()=>vueListe('concurrents'),admin:vueAdmin,journal:vueJournal}[k]||vueTableau)();
 }
+const selPeriode=()=>`<select id="f-periode" aria-label="Période">${[24,48,72].map(n=>`<option value="${n}" ${S.periode===n?'selected':''}>Dernières ${n} heures</option>`).join('')}</select>`;
 function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
 const nomMarque=id=>S.marques.find(m=>m.id===id)?.nom||'';
 const nomClient=id=>S.clients.find(c=>c.id===id)?.nom||'';
@@ -311,9 +312,9 @@ function marquesVisibles(){return S.marques.filter(m=>S.client==='tous'||String(
 // ===== Tableau de bord =====
 async function vueTableau(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
-  const depuis=new Date(Date.now()-864e5).toISOString();
+  const depuis=new Date(Date.now()-S.periode*36e5).toISOString();
   const [p24,att,suiv]=await Promise.all([
-    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',depuis).neq('type','concurrent')),
+    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',depuis).neq('type','concurrent').is('archive_le',null)),
     filtreClient(SB.from('publications').select('id,marque_id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,lien').eq('categorie','attention').neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie'))]);
   const pubs=p24.data||[],atts=att.data||[];
@@ -323,7 +324,7 @@ async function vueTableau(){
     return `<tr><td>${esc(m.nom)}</td><td class="n num">${l.length}</td><td class="n num">${l.length?Math.round(n*100/l.length)+' %':'—'}</td><td class="n num">${nb(l.reduce((s,p)=>s+(p.jaime||0)+(p.com||0)+(p.part||0),0))}</td><td class="n num">${atts.filter(a=>a.marque_id===m.id).length}</td></tr>`}).join('');
   const titreClient=S.client==='tous'?'Toutes les marques':nomClient(Number(S.client));
   c.innerHTML=`<section class="vue">
-    <div class="entete-vue"><h2>Tableau de bord</h2><span class="muted small">${esc(titreClient)} · dernières 24 heures</span></div>
+    <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(titreClient)}</span>${selPeriode()}</div></div>
     <div class="chiffres">
       <div class="chiffre"><b class="num">${pubs.length}</b><span>publications remontées</span></div>
       <div class="chiffre"><b class="num">${pubs.length?Math.round(neg*100/pubs.length)+' %':'—'}</b><span>de publications négatives</span></div>
@@ -335,27 +336,29 @@ async function vueTableau(){
       :`<div class="vide">Aucune marque suivie pour l'instant.${estAdmin()?'<br>Ajoutez une marque et paramétrez sa veille dans <a href="#" id="va-admin">Administration</a>.':''}</div>`}
     <div class="bloc"><h3>Points d'attention</h3>${atts.length?'<div class="liste">'+atts.slice(0,5).map(a=>`<div class="small"><span class="puce acc">${esc(nomMarque(a.marque_id))}</span> ${a.epingle?'<span class="puce">Épinglé</span> ':''}<b>${esc(a.auteur||'Auteur inconnu')}</b> · ${esc(a.plateforme)} · ${esc(a.titre||(a.texte||'').slice(0,120))} · <span class="num">${nb(a.com)}</span> commentaires</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
   </section>`;
+  $('#f-periode').onchange=e=>{S.periode=Number(e.target.value);vueTableau()};
   const va=$('#va-admin');if(va)va.onclick=e=>{e.preventDefault();ouvrir('admin')};
   const n=$('#n-attention');if(n){n.textContent=atts.length;n.hidden=!atts.length}
 }
 
 // ===== Listes de publications =====
 const VUES={
-  attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
+  attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').neq('type','concurrent').or('statut_suivi.is.null,statut_suivi.neq."Alerte close",attention_close_le.gte.'+new Date(Date.now()-864e5).toISOString()).order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
   suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
-  publications:{titre:'Publications',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
-  concurrents:{titre:'Concurrents',q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l\u2019instant. Les concurrents se déclarent dans le paramétrage de chaque marque.'},
-  officiels:{titre:'Canaux officiels',q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
+  publications:{titre:'Publications',periode:true,q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
+  concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l\u2019instant. Les concurrents se déclarent dans le paramétrage de chaque marque.'},
+  officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
 async function vueListe(k){
   const v=VUES[k],c=$('#contenu');
   c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>${v.titre}</h2>
     <div class="filtres"><select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>
     <select id="f-sent" aria-label="Tonalité"><option value="">Toutes tonalités</option><option>Négatif</option><option>Neutre</option><option>Positif</option></select>
-    <select id="f-pf" aria-label="Réseau"><option value="">Tous réseaux</option><option>Facebook</option><option>TikTok</option><option>X</option></select></div></div>
+    <select id="f-pf" aria-label="Réseau"><option value="">Tous réseaux</option><option>Facebook</option><option>TikTok</option><option>X</option></select>${v.periode?selPeriode():''}</div></div>
     <div class="liste" id="liste"><p class="muted">Chargement…</p></div></section>`;
   const charger=async()=>{
-    let q=filtreClient(v.q(SB.from('publications').select('*'))).limit(200);
+    let q=filtreClient(v.q(SB.from('publications').select('*'))).is('archive_le',null).limit(200);
+    if(v.periode){const x=new Date(Date.now()-S.periode*36e5).toISOString();q=q.or(`publiee_le.gte.${x},and(publiee_le.is.null,remontee_le.gte.${x})`)}
     const fm=$('#f-marque').value,fs=$('#f-sent').value,fp=$('#f-pf').value;
     if(fm)q=q.eq('marque_id',fm);if(fs)q=q.eq('sentiment',fs);if(fp)q=q.eq('plateforme',fp);
     const {data,error}=await q;
@@ -363,7 +366,8 @@ async function vueListe(k){
     $('#liste').innerHTML=data.length?data.map(carte).join(''):`<div class="vide">${v.vide}</div>`;
     $('#liste').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>agir(b.dataset.id,b.dataset.a));
   };
-  ['f-marque','f-sent','f-pf'].forEach(i=>$('#'+i).onchange=charger);charger();
+  ['f-marque','f-sent','f-pf'].forEach(i=>$('#'+i).onchange=charger);
+  if($('#f-periode'))$('#f-periode').onchange=e=>{S.periode=Number(e.target.value);charger()};charger();
 }
 function carte(p){
   const lien=lienSur(p.lien);
@@ -377,6 +381,7 @@ function carte(p){
       <span><b>${esc(p.auteur||'Auteur inconnu')}</b> · ${esc(p.plateforme)}</span>
       <span>${p.origine==='humaine'?'Remontée humaine':'Remontée automatisée'}</span>
       ${p.theme?`<span>${esc(p.theme)}</span>`:''}${p.lieu?`<span>${esc(p.lieu)}</span>`:''}</div>
+    ${p.categorie==='attention'?`<div class="meta">${p.epingle?'<span class="puce acc">Épinglé</span>':''}${p.statut_suivi?`<span class="puce">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join(' · ')}</div>`:''}
     ${p.titre?`<div><b>${esc(p.titre)}</b></div>`:''}
     ${p.texte?`<div class="txt">${esc(p.texte)}</div>`:''}
     ${p.capture?`<img class="capture" loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:''}
