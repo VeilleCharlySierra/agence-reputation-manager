@@ -44,7 +44,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .btn.sec:hover{border-color:var(--accent)}
 .btn.danger{background:transparent;color:var(--neg);border:1px solid color-mix(in srgb,var(--neg) 50%,transparent)}
 .btn.mini{padding:4px 9px;font-size:.8rem}
-input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:38px}
 textarea{min-height:70px;resize:vertical}
 label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
@@ -428,7 +428,7 @@ $('#b-compte').addEventListener('click',()=>{S.moi.doit_changer_mdp=true;$('#m-1
 // ===== Onglets =====
 function construireOnglets(){
   const o=[['tableau','Tableau de bord'],['attention','Points d’attention'],['suivies','Publications suivies'],['publications','Publications'],['officiels','Canaux officiels'],['concurrents','Concurrents'],['rapports','Rapports']];
-  if(estAdmin())o.push(['comptes','Création de compte'],['admin','Administration']);
+  if(estAdmin())o.push(['admin','Administration']);
   $('#onglets').innerHTML=o.map(([k,l])=>`<button role="tab" data-o="${k}" aria-selected="${k===S.onglet}">${l}<span class="compteur" id="n-${k}" hidden></span></button>`).join('');
   $('#onglets').querySelectorAll('button').forEach(b=>b.onclick=()=>ouvrir(b.dataset.o));
 }
@@ -440,9 +440,9 @@ function quitterSansEnregistrer(){
 window.addEventListener('beforeunload',e=>{if(S.modifie){e.preventDefault();e.returnValue=''}});
 function ouvrir(k){
   if(!quitterSansEnregistrer())return;
-  if(!estAdmin()&&['admin','comptes'].includes(k))k='tableau';
+  if(!estAdmin()&&k==='admin')k='tableau';
   S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
-  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:()=>vueListe('concurrents'),rapports:vueRapports,comptes:vueComptes,admin:vueAdmin}[k]||vueTableau)();
+  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:()=>vueListe('concurrents'),rapports:vueRapports,admin:vueAdmin}[k]||vueTableau)();
 }
 const selPeriode=(id='f-periode')=>`<select id="${id}" aria-label="Période">${[24,48,72].map(n=>`<option value="${n}" ${S.periode===n?'selected':''}>Dernières ${n} heures</option>`).join('')}</select>`;
 function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
@@ -541,14 +541,14 @@ async function agir(id,a){
 }
 
 // ===== Administration =====
-const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['journal','Journal d’activité']];
+const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['journal','Journal d’activité']];
 function vueAdmin(){
   if(!SECTIONS_ADMIN.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
   const actif=S.admin==='edition'?'marques':S.admin;
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
     <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${SECTIONS_ADMIN.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{if(!quitterSansEnregistrer())return;S.admin=b.dataset.s;vueAdmin()});
-  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,journal:admJournal}[S.admin])();
+  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,journal:admJournal}[S.admin])();
 }
 function confirmer(el,texte,action){
   const d=document.createElement('div');d.className='confirmation';
@@ -818,12 +818,11 @@ function montrerMdp(el,email,mdp){
 }
 async function vueComptes(){
   await chargerReferentiel();
-  const c=$('#contenu');
+  const c=$('#admin-corps');
   const [{data:us},{data:uc}]=await Promise.all([SB.from('utilisateurs').select('*').order('role').order('email'),SB.from('utilisateur_clients').select('*')]);
   const roles=GERE[S.moi.role]||[];
   const voit=u=>u.role==='user_client'?nomClient(u.client_id):u.role==='user_agence'?(uc||[]).filter(x=>x.email===u.email).map(x=>nomClient(x.client_id)).join(', '):'Toutes les marques';
-  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Création de compte</h2></div>
-    <form class="bloc" id="f-compte"><h3>Nouveau compte</h3>
+  c.innerHTML=`<form class="bloc" id="f-compte"><h3>Créer un compte</h3>
     <div class="row"><label>Adresse e-mail<input type="email" id="u-email"></label><label>Nom<input type="text" id="u-nom" maxlength="80"></label>
     <label>Rôle<select id="u-role">${roles.map(r=>`<option value="${r}" ${r==='user_client'?'selected':''}>${ROLES[r]}</option>`).join('')}</select></label></div>
     <div id="u-un-client" hidden><label>Marque<select id="u-client">${S.clients.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('')}</select></label></div>
@@ -833,7 +832,7 @@ async function vueComptes(){
     <div class="bloc"><h3>Comptes</h3><div class="defile"><table class="tab"><thead><tr><th>Personne</th><th>Rôle</th><th>Marques visibles</th><th>État</th><th></th></tr></thead><tbody>
     ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(voit(u))}</td><td>${u.actif?'Actif':'Désactivé'}</td>
     <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
-    </tbody></table></div><div id="u-res2"></div></div></section>`;
+    </tbody></table></div><div id="u-res2"></div></div>`;
   const AIDE={admin_agence:'Voit et paramètre toutes les marques de l’agence, et gère les comptes.',user_agence:'Responsable de comptes à l’agence : voit les marques cochées, reçoit leur rapport quotidien, peut suivre, épingler et signaler des points d’attention.',user_client:'Accès réservé à une marque : consultation de sa seule veille et réception de son rapport quotidien.',admin_plateforme:'Administration de la plateforme.',super_admin:'Accès complet.'};
   const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence';$('#u-aide').textContent=AIDE[r]||''};$('#u-role').onchange=maj;maj();
   $('#f-compte').onsubmit=async e=>{e.preventDefault();$('#u-btn').disabled=true;
