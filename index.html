@@ -661,12 +661,15 @@ function ouvrir(k){
 function bornes(e=S){
   if(e.periode==='perso'&&e.du&&e.au)return {debut:new Date(e.du),fin:new Date(e.au)};
   if(!e.periode)return null;
-  const fin=new Date();return {debut:new Date(fin-e.periode*36e5),fin};
+  // onglets exclusifs : 24 h = dernières 24 heures, 48 h = de 24 à 48 heures, 72 h = de 48 à 72 heures ;
+  // une publication n'apparaît que dans un seul onglet
+  const p=Number(e.periode),maintenant=Date.now();
+  return {debut:new Date(maintenant-p*36e5),fin:new Date(maintenant-(p-24)*36e5)};
 }
 function libellePeriode(e=S){
   const b=bornes(e);if(!b)return 'toutes périodes';
   if(e.periode==='perso'){const f=d=>d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});return `du ${f(b.debut)} au ${f(b.fin)}`}
-  return `dernières ${e.periode} heures`;
+  return Number(e.periode)===24?'dernières 24 heures':`publiées il y a ${Number(e.periode)-24} à ${e.periode} heures`;
 }
 function periodeHTML(e=S,avecTout=false){
   const btn=(v,l)=>`<button type="button" data-p="${v}" aria-pressed="${String(e.periode)===String(v)}">${l}</button>`;
