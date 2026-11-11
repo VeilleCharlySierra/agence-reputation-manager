@@ -93,7 +93,15 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .compte select{width:auto;padding:5px 8px}
 /* Choix de la marque : un bouton par marque visible */
 .barre-marques{background:var(--accent);color:var(--on-accent)}
-.barre-marques .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-block:7px}
+.barre-marques .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px;padding-block:7px}
+.choix-marque{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+.passages{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;font-size:.85rem;font-weight:600}
+.passage{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:12px}
+.passage i{width:9px;height:9px;border-radius:50%;border:2px solid var(--on-accent)}
+.passage.fait i{background:var(--on-accent)}
+.passage.avenir{opacity:.7}
+.passage.prochain{background:var(--on-accent);color:var(--accent);font-weight:800}
+.passage.prochain i{border-color:var(--accent);background:var(--accent)}
 .barre-marques .small{font-weight:600}
 .boutons-marques{display:flex;flex-wrap:wrap;gap:6px}
 .boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
@@ -111,8 +119,10 @@ nav.onglets{border-bottom:1px solid var(--line);background:var(--bg)}
   header.haut #h-logo{height:26px;width:auto}
   header.haut .compte{flex-wrap:nowrap;gap:6px}
   header.haut .compte .btn{padding:4px 8px;font-size:.75rem;white-space:nowrap}
-  .barre-marques .wrap{flex-wrap:nowrap;padding-block:6px}
+  .barre-marques .wrap{flex-wrap:wrap;gap:4px;padding-block:5px}
   .barre-marques .small{display:none}
+  .passages,.choix-marque{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:4px}
+  .passage{padding:1px 6px;font-size:.78rem;white-space:nowrap}
   .boutons-marques{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
   .boutons-marques button{white-space:nowrap;min-height:30px;padding:3px 10px}
   nav.onglets button{padding:9px 10px}
@@ -149,21 +159,25 @@ section.vue{display:grid;gap:16px}
 .segments button{background:var(--panel);color:var(--fg);border:0;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;min-height:38px}
 .segments button+button{border-left:1px solid var(--line)}
 .segments button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
-.grille-pubs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;align-items:start}
+.grille-pubs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:1100px){.grille-pubs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.grille-pubs{grid-template-columns:1fr}}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
-.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:540px}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:760px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
-.pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 128px;height:128px;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
-.pub-image img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;flex:0 0 100%}
-.pub-corps{padding:12px 13px 13px;display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 60%;height:60%;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
+.pub-image img{width:100%;height:100%;object-fit:contain;display:block;flex:0 0 100%;background:#0b0b0b}
+.pub-corps{padding:10px 13px 12px;display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:hidden}
 .pub-corps .puces{flex-wrap:nowrap;overflow:hidden;flex:0 0 auto}
 .pub-corps .puce{white-space:nowrap}
 .pub-auteur{font-weight:700;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
-.pub-texte{overflow-wrap:anywhere;line-height:1.5;height:7.5em;overflow:hidden;flex:0 0 auto}
-.pub-meta{font-size:.8rem;color:var(--muted);line-height:1.4;height:4.2em;overflow:hidden;flex:0 0 auto}
+.pub-texte{overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;height:4.35em;overflow:hidden;flex:0 0 auto}
+.pub-meta{font-size:.78rem;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;height:2.7em;overflow:hidden;flex:0 0 auto}
 .pub-stats{display:flex;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;gap:10px;font-size:.8rem;color:var(--muted);flex:0 0 auto}
 .pub-stats b{color:var(--fg)}
-.pub-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto}
+.pub-actions{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;margin-top:auto}
+.pub-actions .btn{white-space:nowrap;padding:4px 8px}
+.pub-actions a{white-space:nowrap}
 .pub-actions a{font-weight:600;margin-right:4px}
 .pub-motifs{display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;font-size:.75rem;flex:0 0 auto}
 .pub-motifs span{white-space:nowrap}
@@ -483,7 +497,7 @@ body.rapport-ouvert{overflow:hidden}
       </div>
     </div>
   </header>
-  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><span class="small">Marque :</span><div class="boutons-marques" id="sel-client" role="group" aria-label="Choix de la marque"></div></div></div>
+  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><div class="passages" id="passages" aria-label="Passages du jour"></div><div class="choix-marque"><span class="small">Marque :</span><div class="boutons-marques" id="sel-client" role="group" aria-label="Choix de la marque"></div></div></div></div>
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
   </div>
   <main class="wrap" id="contenu"></main>
@@ -500,6 +514,8 @@ const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
 const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
+// Passages de collecte (heure UTC = heure d'Abidjan), fixés par la formule de l'agence
+const PASSAGES=['05:35','11:35','17:35','23:35'];
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
 const $=s=>document.querySelector(s);
@@ -560,7 +576,16 @@ async function chargerReferentiel(){
 }
 // hauteur de l'en-tête figé, pour placer les éléments collants en dessous
 new ResizeObserver(()=>document.documentElement.style.setProperty('--haut-entete',$('#entete-fixe').offsetHeight+'px')).observe($('#entete-fixe'));
+function dessinerPassages(){
+  const maintenant=new Date(),m=maintenant.getUTCHours()*60+maintenant.getUTCMinutes();
+  const mins=PASSAGES.map(h=>{const [a,b]=h.split(':').map(Number);return a*60+b});
+  let prochain=mins.findIndex(x=>x>m);if(prochain<0)prochain=0;
+  $('#passages').innerHTML=`<span class="small">Passages du jour :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
+    return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochain passage':etat==='fait'?'Passage effectué':'Passage à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
+}
+setInterval(()=>{if(!$('#ecran-app').hidden)dessinerPassages()},60000);
 function dessinerMarques(){
+  dessinerPassages();
   const z=$('#sel-client');
   z.innerHTML=S.clients.map(x=>`<button type="button" data-c="${x.id}" aria-pressed="${String(x.id)===String(S.client)}">${x.logo_url?`<img src="${esc(x.logo_url)}" alt="">`:''}${esc(x.nom)}</button>`).join('');
   $('#barre-marques').hidden=S.clients.length<1;
@@ -781,9 +806,9 @@ function carte(p,avecMarque=true){
   const lien=lienSur(p.lien);
   const b=(a,l)=>`<button class="btn sec mini" data-a="${a}" data-id="${p.id}">${l}</button>`;
   const act=peutAgir()?[
-    p.categorie==='publication'?b('suivre','Suivre cette publication')+b('attention','Mettre en point d’attention'):'',
-    p.categorie==='suivie'?b('ne_plus_suivre','Ne plus suivre')+b('attention','Mettre en point d’attention'):'',
-    p.categorie==='attention'?(p.epingle?b('desepingler','Désépingler'):b('epingler','Épingler'))+b('retirer_attention','Retirer des points d’attention'):''
+    p.categorie==='publication'?b('suivre','Suivre')+b('attention','Point d’attention'):'',
+    p.categorie==='suivie'?b('ne_plus_suivre','Ne plus suivre')+b('attention','Point d’attention'):'',
+    p.categorie==='attention'?(p.epingle?b('desepingler','Désépingler'):b('epingler','Épingler'))+b('retirer_attention','Retirer'):''
   ].join(''):'';
   const quand=p.categorie==='publication'?'remontée le '+date(p.remontee_le):'dernier relevé le '+date(p.dernier_releve_le||p.remontee_le);
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
@@ -795,7 +820,7 @@ function carte(p,avecMarque=true){
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
       <div class="pub-meta">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · publiée le ${date(p.publiee_le)} · ${quand}</div>
       <div class="pub-stats num"><span><b>${nb(p.jaime)}</b> j'aime</span><span><b>${nb(p.com)}</b> comm.</span><span><b>${nb(p.part)}</b> partages</span>${p.vues?`<span><b>${nb(p.vues)}</b> vues</span>`:''}</div>
-      <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">Voir la publication</a>`:''}${act}</div>
+      <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener" title="Voir la publication">Voir</a>`:''}${act}</div>
     </div>
   </article>`;
 }
