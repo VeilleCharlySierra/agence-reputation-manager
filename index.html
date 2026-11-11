@@ -330,6 +330,13 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:.85em}
 /* ===== Rapport (format A4, imprimable) ===== */
 body.rapport-ouvert{overflow:hidden}
 .rapport{position:fixed;inset:0;z-index:30;overflow:auto;background:#2a2a2a;padding-bottom:40px}
+.trois-rapports{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px}
+.carte-rapport{display:flex;flex-direction:column;gap:10px;margin:0}
+.carte-rapport h3{margin:0}.carte-rapport p{margin:0}
+.carte-rapport .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.choix-att{border:1px solid var(--ligne,#ddd);border-radius:8px;padding:8px 10px;max-height:190px;overflow:auto;display:grid;gap:4px}
+.choix-att .coche{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;line-height:1.35}
+.choix-att .coche input{margin-top:3px;flex:0 0 auto}
 .r-outils{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px max(16px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px));background:#111;border-bottom:1px solid #333}
 .r-doc{--r-acc:var(--accent);--r-ink:#16180f;--r-neg:#E5484D;--r-neu:#A3A69C;--r-pos:#3DA56A;display:grid;gap:18px;justify-items:center;padding:18px 16px;color:var(--r-ink);font:13px/1.5 var(--text)}
 .page{position:relative;width:min(210mm,100%);min-height:min(297mm,141vw);background:#fff;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.4);-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -720,7 +727,7 @@ async function vueTableau(){
     filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie').is('archive_le',null))]);
   const pubs=pp.data||[],atts=att.data||[];
-  const neg=pubs.filter(p=>p.sentiment==='Négatif').length,somme=k=>pubs.reduce((t,p)=>t+(p[k]||0),0);
+  const neg=pubs.filter(p=>p.sentiment==='Négatif').length,analysees=pubs.filter(p=>['Positif','Neutre','Négatif'].includes(p.sentiment)).length,somme=k=>pubs.reduce((t,p)=>t+(p[k]||0),0);
   const jaime=somme('jaime'),com=somme('com'),part=somme('part'),vues=somme('vues'),inter=jaime+com+part;
   const grouper=(cle,defaut)=>{const o={};for(const p of pubs){const k=p[cle]||defaut;if(!k)continue;o[k]=o[k]||[0,0];o[k][0]++;o[k][1]+=interactions(p)}return Object.entries(o)};
   const themes=grouper('theme').sort((a,b)=>b[1][0]-a[1][0]);
@@ -732,7 +739,7 @@ async function vueTableau(){
     <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(marque?.nom||'')} · ${libellePeriode()}</span>${periodeHTML()}</div></div>
     <div class="tdb-grille">
       <div class="chiffre s6"><b class="num">${nb(pubs.length)}</b><span>publications remontées</span></div>
-      <div class="chiffre s6"><b class="num">${pct(neg,pubs.length)}</b><span>de publications négatives</span></div>
+      <div class="chiffre s6"><b class="num">${pct(neg,analysees)}</b><span>de publications négatives${analysees<pubs.length?` <small class="muted">(sur ${analysees} analysée${analysees>1?'s':''})</small>`:''}</span></div>
       <div class="chiffre s6"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
       <div class="chiffre s6 ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
       <div class="chiffre s6"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
@@ -915,13 +922,13 @@ async function admRecap(){
   const pubs=pp.data||[];
   const lignes=S.clients.map(c=>{
     const cour=pubs.filter(p=>p.client_id===c.id&&p.remontee_le>=debut),prec=pubs.filter(p=>p.client_id===c.id&&p.remontee_le<debut);
-    const neg=cour.filter(p=>p.sentiment==='Négatif').length,inter=cour.reduce((s,p)=>s+interactions(p),0);
+    const neg=cour.filter(p=>p.sentiment==='Négatif').length,an=cour.filter(p=>['Positif','Neutre','Négatif'].includes(p.sentiment)).length,inter=cour.reduce((s,p)=>s+interactions(p),0);
     const ev=prec.length?Math.round((cour.length-prec.length)*100/prec.length):null;
     const themes={};cour.forEach(p=>{if(p.theme)themes[p.theme]=(themes[p.theme]||0)+1});
     const theme=Object.entries(themes).sort((a,b)=>b[1]-a[1])[0];
     const a=(att.data||[]).filter(x=>x.client_id===c.id&&x.statut_suivi!=='Alerte close').length;
     const r=(rap.data||[]).find(x=>x.client_id===c.id);
-    return {c,n:cour.length,neg,inter,ev,theme,a,s:(suiv.data||[]).filter(x=>x.client_id===c.id).length,r};
+    return {c,n:cour.length,neg,an,inter,ev,theme,a,s:(suiv.data||[]).filter(x=>x.client_id===c.id).length,r};
   });
   const tot=k=>lignes.reduce((s,l)=>s+l[k],0);
   const tendance=ev=>ev==null?'<span class="muted">—</span>':`<span class="${ev>0?'hausse':ev<0?'baisse':''}">${ev>0?'▲ +':ev<0?'▼ ':''}${ev} %</span>`;
@@ -930,11 +937,11 @@ async function admRecap(){
     <div class="chiffres">
       <div class="chiffre"><b class="num">${S.clients.length}</b><span>marques suivies</span></div>
       <div class="chiffre"><b class="num">${tot('n')}</b><span>publications remontées</span></div>
-      <div class="chiffre"><b class="num">${pct(tot('neg'),tot('n'))}</b><span>de publications négatives</span></div>
+      <div class="chiffre"><b class="num">${pct(tot('neg'),tot('an'))}</b><span>de publications négatives</span></div>
       <div class="chiffre ${tot('a')?'alerte':''}"><b class="num">${tot('a')}</b><span>points d'attention en cours</span></div>
     </div>
     ${S.clients.length?`<div class="defile"><table class="tab recap"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Évolution</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th><th class="n">Suivies</th><th>Thème dominant</th><th>Dernier rapport</th></tr></thead><tbody>
-    ${lignes.map(l=>`<tr><td><div class="marque-cell">${l.c.logo_url?`<img src="${esc(l.c.logo_url)}" alt="">`:''}<b>${esc(l.c.nom)}</b>${l.c.actif?'':' <span class="puce">Suspendue</span>'}</div></td><td class="n num">${l.n}</td><td class="n num">${tendance(l.ev)}</td><td class="n num">${pct(l.neg,l.n)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a?`<span class="puce Négatif">${l.a}</span>`:'0'}</td><td class="n num">${l.s}</td><td class="small">${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="small num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
+    ${lignes.map(l=>`<tr><td><div class="marque-cell">${l.c.logo_url?`<img src="${esc(l.c.logo_url)}" alt="">`:''}<b>${esc(l.c.nom)}</b>${l.c.actif?'':' <span class="puce">Suspendue</span>'}</div></td><td class="n num">${l.n}</td><td class="n num">${tendance(l.ev)}</td><td class="n num">${pct(l.neg,l.an)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a?`<span class="puce Négatif">${l.a}</span>`:'0'}</td><td class="n num">${l.s}</td><td class="small">${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="small num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
     </tbody></table></div><p class="muted small">Évolution : nombre de publications comparé à la période de même durée qui précède.</p>`:'<p class="muted small">Aucune marque suivie.</p>'}</div>`;
   brancherPeriode(z,S,admRecap);
   const bp=$('#recap-pdf');if(bp)bp.onclick=async()=>{
@@ -947,9 +954,9 @@ async function admRecap(){
       const pied=(n,t)=>`<footer class="r-pied"><span>Document confidentiel · usage interne</span><span>${n} / ${t}</span></footer>`;
       const paquets=[];for(let i=0;i<lignes.length;i+=8)paquets.push(lignes.slice(i,i+8));
       const html=paquets.map((pq,k)=>`<section class="page">${tete(k?'Récapitulatif des marques (suite)':'Récapitulatif des marques')}<div class="r-corps">
-        ${k?'':`<div class="kpis"><div><b class="num">${S.clients.length}</b><span>marques suivies</span></div><div><b class="num">${nb(tot('n'))}</b><span>publications remontées</span></div><div><b class="num">${pct(tot('neg'),tot('n'))}</b><span>de publications négatives</span></div><div><b class="num">${tot('a')}</b><span>points d’attention en cours</span></div></div>`}
+        ${k?'':`<div class="kpis"><div><b class="num">${S.clients.length}</b><span>marques suivies</span></div><div><b class="num">${nb(tot('n'))}</b><span>publications remontées</span></div><div><b class="num">${pct(tot('neg'),tot('an'))}</b><span>de publications négatives</span></div><div><b class="num">${tot('a')}</b><span>points d’attention en cours</span></div></div>`}
         <table class="r-tab recap-pdf"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Évolution</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d’attention</th><th class="n">Suivies</th><th>Thème dominant</th><th>Dernier rapport</th></tr></thead><tbody>
-        ${pq.map(l=>`<tr><td><b>${esc(l.c.nom)}</b>${l.c.actif?'':' (suspendue)'}</td><td class="n num">${nb(l.n)}</td><td class="n num">${ev(l.ev)}</td><td class="n num">${pct(l.neg,l.n)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a}</td><td class="n num">${l.s}</td><td>${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
+        ${pq.map(l=>`<tr><td><b>${esc(l.c.nom)}</b>${l.c.actif?'':' (suspendue)'}</td><td class="n num">${nb(l.n)}</td><td class="n num">${ev(l.ev)}</td><td class="n num">${pct(l.neg,l.an)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a}</td><td class="n num">${l.s}</td><td>${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
         </tbody></table>
         <p class="note">Évolution : nombre de publications comparé à la période de même durée qui précède. Chaque marque est analysée séparément ; ce récapitulatif est réservé à l’administration de l’agence.</p>
         </div>${pied(k+1,paquets.length)}</section>`).join('');
@@ -1069,7 +1076,7 @@ async function admFormMarque(clientId){
         <div class="logo-zone"><div class="logo-apercu" id="logo-apercu">${logo?`<img src="${esc(logo)}" alt="Logo de la marque">`:'<span>Logo</span>'}</div>
           <label class="btn sec mini fichier">Choisir le logo<input type="file" id="logo-fichier" accept="image/png,image/jpeg,image/webp" hidden></label>
           <span class="small muted">PNG, JPEG ou WebP, 2 Mo au plus. Il figure sur les rapports.</span></div>
-        <div class="identite-champs"><div class="row"><label>Nom de la marque<input type="text" id="m-nom" value="${esc(c?.nom||'')}" maxlength="80" required></label><label>Secteur<input type="text" id="m-secteur" value="${esc(c?.secteur||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" id="m-pays" value="${esc(f.pays||"Côte d'Ivoire")}" maxlength="60"></label></div></div>
+        <div class="identite-champs"><div class="row"><label>Nom de la marque<input type="text" id="m-nom" value="${esc(c?.nom||'')}" maxlength="80" required></label><label>Secteur<input type="text" id="m-secteur" value="${esc(c?.secteur||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" id="m-pays" value="${esc(f.pays||"Côte d'Ivoire")}" maxlength="60"></label><label>Couleur de la marque (rapports)<input type="color" id="m-couleur" value="${esc(c?.couleur||'#F77F00')}"></label></div></div>
       </div></div>
 
     <div class="bloc"><h3>Comptes officiels de la marque</h3><p class="muted small">Leurs publications alimentent l’onglet Canaux officiels et servent à proposer des mots-clés.</p>
@@ -1153,7 +1160,7 @@ async function admFormMarque(clientId){
     if(!mots.length&&!comptes.length)return toast('Ajoutez au moins un mot-clé ou un compte officiel.',true);
     const flux=lireLignes($('#z-rss .lignes')).filter(o=>o.url||o.nom);
     if(flux.some(o=>!/^https:\/\/\S+$/i.test(o.url)))return toast('Chaque flux RSS doit avoir une adresse qui commence par https://',true);
-    const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),logo_url:logo,
+    const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),logo_url:logo,couleur:$('#m-couleur').value,
       mots_cles:mots,exclusions:lireLignes($('#z-excl .lignes')).map(o=>o.v).filter(Boolean),comptes_officiels:comptes,haters,
       flux_rss:flux.map(o=>({nom:o.nom||'Flux RSS',url:o.url})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
     $('#b-enregistrer').disabled=true;
@@ -1303,29 +1310,47 @@ const versLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString()
 async function vueRapports(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const {data,error}=await filtreClient(SB.from('rapports').select('id,client_id,type,debut,fin,cree_le,cree_par,envoi_prevu,envoye_le')).order('cree_le',{ascending:false}).limit(100);
-  const marque=S.clients.find(x=>String(x.id)===String(S.client));
-  const maintenant=new Date();
-  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports · ${esc(marque?.nom||'')}</h2></div>
-    <form class="bloc" id="f-rapport"><h3>Générer un rapport</h3><p class="muted small" style="margin:0">Le rapport porte uniquement sur ${esc(marque?.nom||'la marque choisie')}. Pour une autre marque, choisissez-la dans la barre des marques.</p>
-      <div class="row"><label>Période<select id="r-periode"><option value="24">Dernières 24 heures</option><option value="48">Dernières 48 heures</option><option value="72">Dernières 72 heures</option><option value="perso">Dates choisies</option></select></label></div>
-      <div class="row" id="r-dates" hidden><label>Du<input type="datetime-local" id="r-debut" value="${versLocal(new Date(maintenant-864e5))}"></label><label>Au<input type="datetime-local" id="r-fin" value="${versLocal(maintenant)}"></label></div>
-      <div class="row"><button class="btn" type="submit" id="r-btn" ${marque?'':'disabled'}>Générer et télécharger</button></div></form>
-    <div class="bloc"><h3>Rapports disponibles</h3><p class="muted small" style="margin:0">Le rapport quotidien de la marque est produit chaque matin. Son envoi par e-mail aux utilisateurs de la marque et aux responsables de comptes de l’agence sera activé à la mise en service.</p>
-      ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Type</th><th>Période couverte</th><th>Produit le</th><th>Envoi</th><th></th></tr></thead><tbody>
-      ${data.map(r=>`<tr><td><b>${r.type==='quotidien'?'Quotidien':'À la demande'}</b></td><td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td class="small">${r.envoye_le?'Envoyé le '+jourHeure(r.envoye_le):r.type==='quotidien'?'Non envoyé (envoi désactivé)':'—'}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
-  $('#r-periode').onchange=e=>$('#r-dates').hidden=e.target.value!=='perso';
-  $('#f-rapport').onsubmit=async e=>{e.preventDefault();
-    let fin=new Date(),debut;
-    if($('#r-periode').value==='perso'){debut=new Date($('#r-debut').value);fin=new Date($('#r-fin').value);
-      if(isNaN(debut)||isNaN(fin)||debut>=fin)return toast('Vérifiez les dates : le début doit précéder la fin.',true);
-      if(fin-debut>31*864e5)return toast('La période ne peut pas dépasser 31 jours.',true)}
-    else debut=new Date(fin-Number($('#r-periode').value)*36e5);
-    $('#r-btn').disabled=true;
-    const {data:id,error}=await SB.rpc('enregistrer_rapport_demande',{p_client:Number(S.client),p_debut:debut.toISOString(),p_fin:fin.toISOString()});
-    $('#r-btn').disabled=false;
-    if(error)return toast(error.message,true);
-    await vueRapports();telechargerRapport(id)};
+  const auj=new Date().toISOString().slice(0,10),il_y_a=new Date(Date.now()-10*864e5).toISOString().slice(0,10);
+  const choixMarque=id=>S.clients.length<2?'':`<select id="${id}" aria-label="Marque">${S.clients.map(x=>`<option value="${x.id}" ${String(x.id)===String(S.client)?'selected':''}>${esc(x.nom)}</option>`).join('')}</select>`;
+  const libType={quotidien:'Journalier',demande:'Personnalisé',attention:'Points d’attention'};
+  const nomMarque=id=>S.clients.find(x=>x.id===id)?.nom||'';
+  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports</h2></div>
+    ${S.clients.length?`<div class="trois-rapports">
+      <div class="bloc carte-rapport"><h3>Rapport journalier</h3><p class="muted small">Publications des dernières 24 heures (période exacte indiquée dans le PDF) ; produit automatiquement chaque matin à 6h00 UTC.</p>
+        <div class="row"><input type="date" id="rj-jour" value="${auj}" max="${auj}" aria-label="Date du rapport">${choixMarque('rj-marque')}<button class="btn" type="button" id="rj-btn">Télécharger le PDF</button></div></div>
+      <div class="bloc carte-rapport"><h3>Rapport personnalisé</h3><p class="muted small">Copie du tableau de bord pour la période${S.clients.length>1?' et la marque choisies':' choisie'}.</p>
+        <div class="row"><input type="date" id="rp-debut" value="${il_y_a}" max="${auj}" aria-label="Du"><span class="muted">→</span><input type="date" id="rp-fin" value="${auj}" max="${auj}" aria-label="Au"></div>
+        <div class="row">${choixMarque('rp-marque')}<button class="btn" type="button" id="rp-btn">Générer le PDF</button></div></div>
+      <div class="bloc carte-rapport"><h3>Rapport points d’attention</h3><p class="muted small">Choisissez les thématiques et publications ; le rapport reprend leurs fiches telles qu’affichées.</p>
+        ${S.clients.length>1?`<div class="row">${choixMarque('ra-marque')}</div>`:''}
+        <div class="choix-att" id="ra-choix"><p class="muted small">Chargement…</p></div>
+        <div class="row"><button class="btn" type="button" id="ra-btn">Générer le PDF</button></div></div>
+    </div>`:'<div class="vide">Aucune marque suivie pour l’instant.</div>'}
+    <div class="bloc"><h3>Rapports produits</h3>
+      ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Type</th>${S.clients.length>1?'<th>Marque</th>':''}<th>Période couverte</th><th>Produit le</th><th></th></tr></thead><tbody>
+      ${data.map(r=>`<tr><td><b>${libType[r.type]||r.type}</b></td>${S.clients.length>1?`<td>${esc(nomMarque(r.client_id))}</td>`:''}<td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
   c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>telechargerRapport(Number(b.dataset.v),b));
+  if(!S.clients.length)return;
+  const marqueDe=id=>Number(($('#'+id)||{}).value||S.client);
+  const lancer=async(btn,appel)=>{btn.disabled=true;try{const {data:id,error}=await appel();if(error)return toast(error.message,true);await telechargerRapport(id,btn);vueRapports()}finally{btn.disabled=false}};
+  $('#rj-btn').onclick=e=>{const j=$('#rj-jour').value;if(!j)return toast('Choisissez une date.',true);
+    lancer(e.target,()=>SB.rpc('rapport_journalier',{p_client:marqueDe('rj-marque'),p_jour:j}))};
+  $('#rp-btn').onclick=e=>{const d=$('#rp-debut').value,f=$('#rp-fin').value;
+    if(!d||!f||d>f)return toast('Vérifiez les dates : le début doit précéder la fin.',true);
+    const debut=new Date(d+'T00:00:00Z'),fin=new Date(Math.min(Date.now(),new Date(f+'T00:00:00Z').getTime()+864e5));
+    if(fin-debut>31*864e5)return toast('La période ne peut pas dépasser 31 jours.',true);
+    lancer(e.target,()=>SB.rpc('enregistrer_rapport_demande',{p_client:marqueDe('rp-marque'),p_debut:debut.toISOString(),p_fin:fin.toISOString()}))};
+  const chargerChoix=async()=>{const z=$('#ra-choix');z.innerHTML='<p class="muted small">Chargement…</p>';
+    const {data:ch,error:e}=await SB.rpc('choix_rapport_attention',{p_client:marqueDe('ra-marque')});
+    if(e){z.innerHTML='<p class="erreur">'+esc(e.message)+'</p>';return}
+    const th=ch.themes||[],pb=ch.publications||[];
+    z.innerHTML=!th.length&&!pb.length?'<p class="muted small">Aucun point d’attention en cours pour cette marque.</p>':
+      `${th.length?`<b class="small">Thématiques</b>${th.map(t=>`<label class="coche"><input type="checkbox" data-t="${esc(t)}" checked><span>${esc(t)}</span></label>`).join('')}`:''}
+      ${pb.length?`<b class="small">Publications</b>${pb.map(p=>`<label class="coche"><input type="checkbox" data-p="${p.id}" checked><span>${esc(p.auteur||'Auteur non disponible')} – « ${esc(p.titre||p.texte||'')} »</span></label>`).join('')}`:''}`};
+  if($('#ra-marque'))$('#ra-marque').onchange=chargerChoix;chargerChoix();
+  $('#ra-btn').onclick=e=>{const t=[...document.querySelectorAll('#ra-choix [data-t]:checked')].map(x=>x.dataset.t),p=[...document.querySelectorAll('#ra-choix [data-p]:checked')].map(x=>Number(x.dataset.p));
+    if(!t.length&&!p.length)return toast('Choisissez au moins une thématique ou une publication.',true);
+    lancer(e.target,()=>SB.rpc('enregistrer_rapport_attention',{p_client:marqueDe('ra-marque'),p_themes:t,p_pubs:p}))};
 }
 
 // Synthèse factuelle, utilisée quand le rapport n'a pas de synthèse rédigée (aucune interprétation, aucun qualificatif)
@@ -1352,7 +1377,8 @@ function pagesRapport(r){
   const nd=v=>v==null?'non disponible':nb(v);
   const tot=d.total||0,ton=d.tonalite||{};
   const quotidien=r.type==='quotidien';
-  const titre=quotidien?'Rapport quotidien de veille':'Rapport de veille';
+  const typeAtt=r.type==='attention';
+  const titre=quotidien?'Rapport quotidien de veille':typeAtt?'Rapport points d’attention':'Rapport de veille personnalisé';
   const periode=`du ${jourHeure(r.debut)} au ${jourHeure(r.fin)}`;
   const dateR=jour(r.cree_le);
   const logoClient=d.logo?`<img src="${esc(d.logo)}" alt="${esc(d.marque)}">`:`<b>${esc(d.marque)}</b>`;
@@ -1394,7 +1420,7 @@ function pagesRapport(r){
   // pages intérieures numérotées
   const interieures=[];
   const page=(section,corps,cls='')=>interieures.push({section,corps,cls});
-  page('Synthèse',`<p class="r-periode"><b>Période couverte :</b> ${periode}</p>
+  if(!typeAtt){page('Synthèse',`<p class="r-periode"><b>Période couverte :</b> ${periode}</p>
     <div class="kpis"><div><b class="num">${nb(tot)}</b><span>publications remontées</span></div><div><b class="num">${pct(d.negatives||0,tot)}</b><span>de publications négatives</span></div><div><b class="num">${nb((d.jaime||0)+(d.com||0)+(d.part||0))}</b><span>interactions</span></div><div><b class="num">${(d.attention||[]).length}</b><span>points d’attention actifs</span></div></div>
     <h3>Faits marquants</h3><ul>${(syn.faits||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
     <h3>Points d’attention</h3><ul>${(syn.attention||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`);
@@ -1405,15 +1431,15 @@ function pagesRapport(r){
   page('01 – Tableau de bord (suite)',`<h3>Nuage de mots</h3>${nuage}
     <div class="deux"><div><h3>Localités citées</h3>${barres((d.lieux||[]).slice(0,10),'n','lieu')}</div><div><h3>Interactions par thématique</h3>${barres(themes.slice(0,10).map(x=>({theme:x.theme,i:x.interactions||0})),'i','theme')}</div></div>
     <h3>Publications par réseau</h3>${barres(Object.entries(d.par_reseau||{}).map(([k,v])=>({k,v})).sort((x,y)=>y.v-x.v),'v','k')}
-    <p class="note">Base : publications publiques remontées sur la marque pendant la période, hors canaux officiels et concurrents ; mêmes chiffres que le tableau de bord de la plateforme.</p>`);
+    <p class="note">Base : publications publiques remontées sur la marque pendant la période, hors canaux officiels et concurrents ; mêmes chiffres que le tableau de bord de la plateforme.</p>`);}
   // points d'attention : jamais coupés, un ou deux par page selon leur taille
   const att=d.attention||[];
   if(!att.length)page('02 – Points d’attention','<p class="vide-r">Aucun point d’attention en cours sur la période.</p>');
   else{let lot=[],poids=0;const vider=()=>{if(lot.length){page(interieures.some(p=>p.section.startsWith('02'))?'02 – Points d’attention (suite)':'02 – Points d’attention',`<div class="r-atts">${lot.map(ficheAtt).join('')}</div>`);lot=[];poids=0}};
     for(const x of att){const w=(x.texte||'').length>(x.capture?380:750)?2:1;if(poids+w>2)vider();lot.push(x);poids+=w}vider()}
   // publications remontées : 6 par page, deux colonnes
-  const pubs=d.publications||[];
-  if(!pubs.length)page('03 – Publications remontées','<p class="vide-r">Aucune publication sur la période.</p>');
+  const pubs=typeAtt?[]:d.publications||[];
+  if(!typeAtt&&!pubs.length)page('03 – Publications remontées','<p class="vide-r">Aucune publication sur la période.</p>');
   for(let i=0;i<pubs.length;i+=6)page(i?'03 – Publications remontées (suite)':'03 – Publications remontées',`<div class="r-pubs">${pubs.slice(i,i+6).map(cartePub).join('')}</div>`,'six');
 
   const total=interieures.length+3;
@@ -1430,7 +1456,7 @@ function pagesRapport(r){
       <div class="c-client">${logoClient}</div>
     </section>
     <section class="page separation"><div class="motif" aria-hidden="true"></div><div class="sep-client">${logoClient}</div><p>${esc(d.marque)}</p>
-      <ol class="sommaire"><li><span>Synthèse</span></li><li><span>01 – Tableau de bord</span></li><li><span>02 – Points d’attention</span></li><li><span>03 – Publications remontées</span></li></ol></section>
+      <ol class="sommaire">${typeAtt?'<li><span>Points d’attention choisis</span></li>':'<li><span>Synthèse</span></li><li><span>01 – Tableau de bord</span></li><li><span>02 – Points d’attention</span></li><li><span>03 – Publications remontées</span></li>'}</ol></section>
     ${interieures.map((p,i)=>`<section class="page ${p.cls}">${entete(p.section)}<div class="r-corps">${p.corps}</div>${pied(i+3)}</section>`).join('')}
     <section class="page dos"><div class="motif" aria-hidden="true"></div><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><p>${esc(IMAGE.nom_plateforme)}</p></section>
 `};
