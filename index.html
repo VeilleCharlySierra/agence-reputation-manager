@@ -756,7 +756,7 @@ async function admFormMarque(clientId){
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     $('#b-enregistrer').disabled=false;
     if(error)return toast(error.code==='23505'?'Une marque porte déjà ce nom.':error.message,true);
-    S.modifie=false;toast(c?'Marque enregistrée':'Marque créée');
+    S.modifie=false;toast(c?'Marque enregistrée':'Marque créée : le premier tour de veille sera lancé dans les 15 minutes');
     await chargerReferentiel();S.admin='edition';S.adminMarque=Number(data);vueAdmin();
   };
 }
@@ -768,7 +768,7 @@ async function admMarques(){
   const nbUtil=id=>(us||[]).filter(u=>u.role==='user_client'&&u.client_id===id).length+(uc||[]).filter(x=>x.client_id===id).length;
   const z=$('#admin-corps');
   z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Marques suivies</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota}</span>`:''}</div>
-    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
+    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>Premier tour de veille</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td class="small">${f?.point_zero_le?'Fait le '+date(f.point_zero_le):'<span class="puce">Dans les 15 minutes</span>'}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn mini" data-m="${c.id}">Modifier</button> <button class="btn sec mini" data-s="${c.id}">${c.actif?'Suspendre':'Reprendre'}</button> <button class="btn danger mini" data-x="${c.id}">Supprimer</button></td></tr>`}).join('')}</tbody></table></div>`
       :'<p class="muted small">Aucune marque suivie. Créez la première dans « Création de marque ».</p>'}</div>`;
   z.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.admin='edition';S.adminMarque=Number(b.dataset.m);vueAdmin()});
