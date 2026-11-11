@@ -178,6 +178,20 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 /* Contrôle qualité */
 ul.pb{margin:6px 0 0;padding-left:16px;color:var(--fg)}
 .alerte-ctl{border-color:color-mix(in srgb,var(--neg) 60%,var(--line))}
+/* Comparaison concurrents */
+.comparatif td,.comparatif th{white-space:nowrap}
+.comparatif .ligne-marque td{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.barres-app{display:grid;gap:7px;max-width:760px}
+.barre-app{display:grid;grid-template-columns:minmax(90px,180px) 1fr 70px;gap:10px;align-items:center;font-size:.88rem}
+.barre-app .lib{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barre-app .piste{height:14px;background:var(--panel2);border-radius:7px;overflow:hidden}
+.barre-app .piste i{display:block;height:100%;background:var(--muted)}
+.barre-app.marque .piste i{background:var(--accent)}
+.barre-app b{text-align:right}
+.tops{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.top{border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:4px;background:var(--bg)}
+#conc-corps{display:grid;gap:16px}
+#conc-corps .vue{padding:0}
 /* Récapitulatif */
 .marque-cell{display:flex;align-items:center;gap:8px}
 .marque-cell img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:5px;padding:2px}
@@ -515,7 +529,7 @@ function ouvrir(k){
   if(!quitterSansEnregistrer())return;
   if(!estAdmin()&&k==='admin')k='tableau';
   S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
-  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:()=>vueListe('concurrents'),rapports:vueRapports,admin:vueAdmin}[k]||vueTableau)();
+  ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:vueConcurrents,rapports:vueRapports,admin:vueAdmin}[k]||vueTableau)();
 }
 const selPeriode=(id='f-periode')=>`<select id="${id}" aria-label="Période">${[24,48,72].map(n=>`<option value="${n}" ${S.periode===n?'selected':''}>Dernières ${n} heures</option>`).join('')}</select>`;
 function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
@@ -572,13 +586,13 @@ const VUES={
   attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').neq('type','concurrent').or('statut_suivi.is.null,statut_suivi.neq."Alerte close",attention_close_le.gte.'+new Date(Date.now()-864e5).toISOString()).order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
   suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
   publications:{titre:'Publications',periode:true,note:'Les publications suivies et les points d’attention n’y figurent plus : ils sont dans leur onglet. Les publications ordinaires restent 72 h.',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
-  concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l’instant. Les concurrents se déclarent avec chaque marque, dans Administration.'},
+  concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l’instant. Les pages officielles des concurrents se déclarent avec chaque marque, dans Administration.'},
   officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
-async function vueListe(k){
-  const v=VUES[k],c=$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:''});
+async function vueListe(k,cible){
+  const v=VUES[k],c=cible||$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:''});
   const plusieurs=marquesVisibles().length>1;
-  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>${v.titre}</h2></div>
+  c.innerHTML=`<section class="vue">${cible?'':`<div class="entete-vue"><h2>${v.titre}</h2></div>`}
     <div class="barre-filtres">
       ${v.periode?`<div class="segments" role="group" aria-label="Période">${[24,48,72].map(n=>`<button type="button" data-h="${n}" aria-pressed="${S.periode===n}">${n} h</button>`).join('')}</div>`:''}
       ${plusieurs?`<select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>`:''}
@@ -638,7 +652,7 @@ function carte(p,avecMarque=true){
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
     <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
-      <div class="puces">${avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
+      <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
       ${p.categorie==='attention'?`<div class="pub-motifs" title="${esc([p.statut_suivi,...(p.motifs||[])].filter(Boolean).join(' · '))}">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
       <div class="pub-auteur" title="${esc(p.auteur||'')}">${esc(p.auteur||'Auteur non disponible')}</div>
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
@@ -653,6 +667,49 @@ async function agir(id,a){
   if(error)return toast(error.message,true);
   toast({suivre:'Publication suivie',ne_plus_suivre:'Publication retirée du suivi',attention:'Ajoutée aux points d’attention',retirer_attention:'Retirée des points d’attention',epingler:'Point d’attention épinglé',desepingler:'Point d’attention désépinglé'}[a]||'Fait');
   ouvrir(S.onglet);
+}
+
+// ===== Concurrents : 1. leurs publications  2. comparaison des 10 dernières publications =====
+async function vueConcurrents(){
+  const c=$('#contenu');
+  const {data:conc}=await filtreClient(SB.from('concurrents').select('id,nom,client_id,comptes')).order('nom');
+  S.nomsConc=Object.fromEntries((conc||[]).map(k=>[k.id,k.nom]));
+  S.concVue=S.concVue||'publications';
+  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Concurrents</h2>
+    <div class="segments" role="group" aria-label="Affichage"><button type="button" data-v="publications" aria-pressed="${S.concVue==='publications'}">Publications des concurrents</button><button type="button" data-v="comparaison" aria-pressed="${S.concVue==='comparaison'}">Statistiques comparatives</button></div></div>
+    <div id="conc-corps"></div></section>`;
+  c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{S.concVue=b.dataset.v;vueConcurrents()});
+  if(S.concVue==='publications')return vueListe('concurrents',$('#conc-corps'));
+  comparaison($('#conc-corps'),conc||[]);
+}
+async function comparaison(z,conc){
+  z.innerHTML='<p class="muted">Chargement…</p>';
+  // toutes les publications des pages officielles (archives comprises : leurs statistiques sont conservées)
+  const {data,error}=await filtreClient(SB.from('publications').select('id,client_id,marque_id,type,concurrent_id,auteur,plateforme,jaime,com,part,vues,publiee_le,remontee_le,lien,texte,titre')
+    .in('type',['officiel','concurrent'])).order('publiee_le',{ascending:false,nullsFirst:false}).limit(1000);
+  if(error)return z.innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';
+  const marques=S.clients.filter(x=>S.client==='tous'||String(x.id)===String(S.client));
+  const stats=(nom,l,estMarque)=>{l=l.slice(0,10);const n=l.length,s=k=>l.reduce((t,p)=>t+(p[k]||0),0);
+    const dates=l.map(p=>new Date(p.publiee_le||p.remontee_le).getTime()).filter(x=>x);const jours=dates.length>1?(Math.max(...dates)-Math.min(...dates))/864e5:0;
+    const top=[...l].sort((a,b)=>interactions(b)-interactions(a))[0];
+    return {nom,estMarque,n,jaime:n?s('jaime')/n:0,com:n?s('com')/n:0,part:n?s('part')/n:0,vues:n&&l.some(p=>p.vues!=null)?s('vues')/n:null,inter:n?(s('jaime')+s('com')+s('part'))/n:0,total:s('jaime')+s('com')+s('part'),rythme:jours>0?(n-1)/jours*7:null,top,debut:dates.length?Math.min(...dates):null,fin:dates.length?Math.max(...dates):null}};
+  const ent=x=>x==null?'—':nb(Math.round(x));
+  const blocs=marques.map(m=>{
+    const ks=conc.filter(k=>k.client_id===m.id);
+    const lignes=[stats(m.nom,(data||[]).filter(p=>p.client_id===m.id&&p.type==='officiel'),true),...ks.map(k=>stats(k.nom,(data||[]).filter(p=>p.concurrent_id===k.id),false))];
+    if(!ks.length)return `<div class="bloc"><h3>${esc(m.nom)}</h3><p class="muted small">Aucun concurrent déclaré pour cette marque. Ajoutez la page officielle d’un concurrent dans Administration › Marques suivies.</p></div>`;
+    const max=Math.max(1,...lignes.map(x=>x.inter));
+    return `<div class="bloc"><h3>${esc(m.nom)} face à ${ks.map(k=>esc(k.nom)).join(', ')}</h3>
+      <p class="muted small" style="margin:0">Moyennes calculées sur les 10 dernières publications des pages officielles de chacun.</p>
+      <div class="defile"><table class="tab comparatif"><thead><tr><th>Page</th><th class="n">Publications</th><th class="n">J'aime / pub.</th><th class="n">Comm. / pub.</th><th class="n">Partages / pub.</th><th class="n">Vues / pub.</th><th class="n">Interactions / pub.</th><th class="n">Interactions totales</th><th class="n">Publications / semaine</th><th>Période</th></tr></thead><tbody>
+      ${lignes.map(x=>`<tr class="${x.estMarque?'ligne-marque':''}"><td><b>${esc(x.nom)}</b>${x.estMarque?' <span class="puce acc">Marque</span>':''}</td><td class="n num">${x.n}</td><td class="n num">${ent(x.jaime)}</td><td class="n num">${ent(x.com)}</td><td class="n num">${ent(x.part)}</td><td class="n num">${ent(x.vues)}</td><td class="n num"><b>${ent(x.inter)}</b></td><td class="n num">${nb(x.total)}</td><td class="n num">${x.rythme==null?'—':x.rythme.toLocaleString('fr-FR',{maximumFractionDigits:1})}</td><td class="small num">${x.debut?new Date(x.debut).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' → '+new Date(x.fin).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'—'}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="sous-titre">Interactions moyennes par publication</div>
+      <div class="barres-app">${lignes.map(x=>`<div class="barre-app ${x.estMarque?'marque':''}"><span class="lib">${esc(x.nom)}</span><span class="piste"><i style="width:${Math.max(1,x.inter*100/max)}%"></i></span><b class="num">${ent(x.inter)}</b></div>`).join('')}</div>
+      <div class="sous-titre">Publication la plus engageante</div>
+      <div class="tops">${lignes.map(x=>x.top?`<div class="top"><b>${esc(x.nom)}</b><span class="small">${esc(extrait(x.top.texte||x.top.titre||'Texte non disponible',14))}</span><span class="small muted num">${nb(interactions(x.top))} interactions · ${date(x.top.publiee_le)}</span>${lienSur(x.top.lien)?`<a class="small" href="${esc(lienSur(x.top.lien))}" target="_blank" rel="noopener">Voir la publication</a>`:''}</div>`:`<div class="top"><b>${esc(x.nom)}</b><span class="small muted">Aucune publication pour l’instant.</span></div>`).join('')}</div>
+    </div>`}).join('');
+  z.innerHTML=blocs||'<div class="vide">Aucune marque suivie.</div>';
 }
 
 // ===== Administration =====
@@ -788,8 +845,7 @@ async function admFormMarque(clientId){
     [hat,conc,ter,sug]=r.map(x=>x.data||[])}
   let logo=c?.logo_url||'';
   const blocConc=k=>`<div class="concurrent" data-id="${k?.id||''}"><div class="row"><label>Nom du concurrent<input type="text" data-c="nom" value="${esc(k?.nom||'')}" maxlength="80"></label><button type="button" class="btn danger mini retirer-conc">Retirer ce concurrent</button></div>
-      <div class="sous-titre">Mots-clés du concurrent</div>${zoneLignes('mot',(k?.mots_cles||[]).map(v=>({v})),'Ajouter un mot-clé')}
-      <div class="sous-titre">Comptes du concurrent</div>${zoneLignes('compte',k?.comptes||[],'Ajouter un compte')}</div>`;
+      <div class="sous-titre">Pages officielles du concurrent</div>${zoneLignes('compte',k?.comptes||[],'Ajouter une page officielle')}</div>`;
   const ctl=f.controle||{};
   z.innerHTML=`${c&&!f.point_zero_le&&ctl.etat==='à corriger'?`<div class="bloc alerte-ctl"><h3>Contrôle qualité : à corriger avant le premier tour</h3><ul class="pb">${(ctl.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="small muted" style="margin:0">Corrigez puis enregistrez : le contrôle et le premier tour sont relancés aussitôt.</p></div>`:''}<form class="fiche" id="f-marque" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">${c?esc(c.nom):'Nouvelle marque'}</h3>${c?'<button class="btn sec mini" id="retour" type="button">Toutes les marques</button>':quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
@@ -815,7 +871,7 @@ async function admFormMarque(clientId){
     <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d’un hater sur la marque devient un point d’attention.</p>
       <div id="z-haters">${zoneLignes('hater',hat.map(h=>({reseau:h.reseau,nom:h.nom,url:h.url||''})),'Ajouter un hater')}</div></div>
 
-    <div class="bloc"><h3>Concurrents</h3><p class="muted small">Leurs publications apparaissent dans l’onglet Concurrents.</p>
+    <div class="bloc"><h3>Concurrents</h3><p class="muted small">Seules leurs pages officielles sont suivies. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
       <div id="z-conc">${conc.map(blocConc).join('')}</div><button type="button" class="btn sec mini" id="ajout-conc">+ Ajouter un concurrent</button></div>
 
     <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Un terme trouvé dans une publication déclenche une alerte immédiate. Dix termes au plus.</p>
@@ -864,9 +920,9 @@ async function admFormMarque(clientId){
     const mots=lireLignes($('#z-mots .lignes')).map(o=>o.v).filter(Boolean);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
-      mots_cles:lireLignes(b.querySelector('.lignes[data-type=mot]')).map(o=>o.v).filter(Boolean),comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
-    if(concurrents.some(k=>!k.nom&&(k.mots_cles.length||k.comptes.length)))return toast('Indiquez le nom de chaque concurrent.',true);
-    for(const k of concurrents)for(const m of k.mots_cles){const err=controleRequete(m);if(err)return toast(`Concurrent ${k.nom}, mot-clé « ${m} » : ${err}.`,true)}
+      mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
+    if(concurrents.some(k=>!k.nom&&k.comptes.length))return toast('Indiquez le nom de chaque concurrent.',true);
+    if(concurrents.some(k=>k.nom&&!k.comptes.length))return toast('Ajoutez au moins une page officielle pour chaque concurrent.',true);
     const haters=lireLignes($('#z-haters .lignes')).filter(o=>o.nom||o.url);
     if(haters.some(h=>!h.nom))return toast('Indiquez le nom de chaque hater.',true);
     const comptes=lireLignes($('#z-officiels .lignes')).filter(o=>o.url);
