@@ -82,7 +82,7 @@ label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
 .erreur{color:var(--neg);font-size:.88rem;min-height:1.2em;margin:-6px 0}
 @media (max-width:520px){.carte-connexion{padding:32px 22px 26px}.filigrane .g1,.filigrane .g2{width:220px;height:180px}.filigrane .s1{width:260px;height:260px}}
 /* En-tête */
-header.haut{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header.haut{border-bottom:1px solid var(--line);background:var(--bg)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding-block:10px}
 .marque{display:flex;align-items:center;gap:12px;min-width:0}
@@ -91,7 +91,7 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .marque .agence{font-size:.75rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
 .compte{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
 .compte select{width:auto;padding:5px 8px}
-nav.onglets{border-bottom:1px solid var(--line)}
+nav.onglets{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6;background:color-mix(in srgb,var(--bg) 94%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding-top:env(safe-area-inset-top,0px)}
 nav.onglets .wrap{display:flex;gap:4px;overflow-x:auto}
 nav.onglets button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;white-space:nowrap;font-weight:500}
 nav.onglets button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
@@ -151,7 +151,7 @@ section.vue{display:grid;gap:16px}
 
 /* Administration */
 .admin-grille{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
-.admin-menu{display:grid;gap:2px;position:sticky;top:120px}
+.admin-menu{display:grid;gap:2px;position:sticky;top:64px}
 .admin-menu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;color:var(--muted);cursor:pointer}
 .admin-menu button[aria-current=true]{background:var(--panel);color:var(--fg)}
 .bloc{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
@@ -529,6 +529,7 @@ function ouvrir(k){
   if(!quitterSansEnregistrer())return;
   if(!estAdmin()&&k==='admin')k='tableau';
   S.onglet=k;$('#onglets').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===k));
+  $('#onglets').querySelector(`[data-o="${k}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
   ({tableau:vueTableau,attention:()=>vueListe('attention'),suivies:()=>vueListe('suivies'),publications:()=>vueListe('publications'),officiels:()=>vueListe('officiels'),concurrents:vueConcurrents,rapports:vueRapports,admin:vueAdmin}[k]||vueTableau)();
 }
 const selPeriode=(id='f-periode')=>`<select id="${id}" aria-label="Période">${[24,48,72].map(n=>`<option value="${n}" ${S.periode===n?'selected':''}>Dernières ${n} heures</option>`).join('')}</select>`;
