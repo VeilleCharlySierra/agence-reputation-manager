@@ -926,20 +926,52 @@ async function comparaison(z,conc){
 }
 
 // ===== Administration =====
-const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['journal','Journal d’activité']];
+const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['groupes','Groupes Facebook'],['journal','Journal d’activité']];
 function vueAdmin(){
   if(!SECTIONS_ADMIN.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
   const actif=S.admin==='edition'?'marques':S.admin;
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
     <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${SECTIONS_ADMIN.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{if(!quitterSansEnregistrer())return;S.admin=b.dataset.s;vueAdmin()});
-  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,journal:admJournal}[S.admin])();
+  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,groupes:admGroupes,journal:admJournal}[S.admin])();
 }
 function confirmer(el,texte,action){
   const d=document.createElement('div');d.className='confirmation';
   d.innerHTML=`<span>${esc(texte)}</span><button class="btn danger mini" type="button">Confirmer</button><button class="btn sec mini" type="button">Annuler</button>`;
   el.after(d);el.hidden=true;
   const [ok,ann]=d.querySelectorAll('button');ann.onclick=()=>{d.remove();el.hidden=false};ok.onclick=async()=>{ok.disabled=true;await action();};
+}
+
+// ---- Groupes Facebook publics : lecture par paliers (gestion de crise) ----
+async function admGroupes(){
+  const z=$('#admin-corps');z.innerHTML='<p class="muted">Chargement…</p>';
+  const {data:e,error}=await SB.rpc('etat_groupes');
+  if(error){z.innerHTML='<p class="erreur">'+esc(error.message)+'</p>';return}
+  const h=String(e.heures||'2,6,12,24').split(',').map(Number);
+  const libP=p=>`Palier ${p} · toutes les ${h[p-1]===24?'24 heures (une fois par jour)':h[p-1]+' heures'}`;
+  // estimation : environ 9 publications par groupe et par jour, 0,0021 $ la publication (mesuré à l'essai)
+  const estim=Math.min(e.total,e.max)*9*0.0021;
+  z.innerHTML=`<div class="bloc"><h3>Lecture des groupes Facebook publics</h3>
+    <p class="muted small">Source commune à toutes les marques : chaque publication lue est comparée aux mots-clés de toutes les marques suivies. Les groupes les plus utiles sont lus plus souvent ; un groupe qui ramène des publications retenues monte d’un palier, un groupe muet pendant 7 jours descend.</p>
+    <div class="row" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end">
+      <label style="display:flex;gap:8px;align-items:center;min-height:42px;white-space:nowrap"><input type="checkbox" id="g-actif" ${e.actif?'checked':''} style="width:auto;margin:0"> <span>Lecture active</span></label>
+      <label class="small">Groupes suivis au plus<input type="number" id="g-max" min="1" max="3000" value="${e.max}"></label>
+      <label class="small">Budget par jour ($)<input type="number" id="g-budget" min="0" max="100" step="0.5" value="${e.budget_jour}"></label>
+      <button class="btn" type="button" id="g-ok">Enregistrer</button>
+    </div>
+    <p class="small">Dépense des dernières 24 h : <b class="num">${Number(e.depense_jour).toFixed(2)} $</b> · estimation pour ${nb(Math.min(e.total,e.max))} groupes : <b class="num">≈ ${estim.toFixed(2)} $ par jour</b> (la fréquence ne change pas le coût : chaque lecture ne prend que les publications parues depuis la précédente).</p></div>
+    <div class="bloc"><h3>Paliers</h3><div class="defile"><table class="tab"><thead><tr><th>Palier</th><th class="n">Groupes</th><th class="n">Ayant ramené des publications (7 j)</th></tr></thead><tbody>
+    ${(e.paliers||[]).map(x=>`<tr><td>${libP(x.palier)}</td><td class="n num">${nb(x.groupes)}</td><td class="n num">${nb(x.retenues_7j)}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="bloc"><h3>Groupes (${nb(e.total)})</h3><input type="search" id="g-q" placeholder="Rechercher un groupe…" aria-label="Rechercher un groupe" style="max-width:320px">
+    <div class="defile" style="max-height:520px"><table class="tab"><thead><tr><th>Groupe</th><th>Palier</th><th class="n">Lues</th><th class="n">Retenues</th><th>Dernière lecture</th></tr></thead><tbody id="g-liste"></tbody></table></div></div>`;
+  const lister=()=>{const q=norm($('#g-q').value);
+    $('#g-liste').innerHTML=(e.groupes||[]).filter(g=>!q||norm(g.nom+' '+g.url).includes(q)).slice(0,400).map(g=>`<tr><td><a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.nom)}</a></td>
+      <td><select data-g="${g.id}" aria-label="Palier">${[1,2,3,4].map(p=>`<option value="${p}" ${p===g.palier?'selected':''}>${p} · ${h[p-1]} h</option>`).join('')}</select>${g.manuel?' <span class="muted small">(réglé à la main)</span>':''}</td>
+      <td class="n num">${nb(g.lues||0)}</td><td class="n num">${nb(g.retenues||0)}</td><td class="small num">${g.lu?jourHeure(g.lu):'—'}</td></tr>`).join('');
+    $('#g-liste').querySelectorAll('[data-g]').forEach(sel=>sel.onchange=async()=>{const {error}=await SB.rpc('regler_groupes',{p:{groupe:Number(sel.dataset.g),palier:Number(sel.value),manuel:true}});toast(error?error.message:'Palier enregistré',!!error)})};
+  $('#g-q').oninput=lister;lister();
+  $('#g-ok').onclick=async()=>{const {error}=await SB.rpc('regler_groupes',{p:{actif:$('#g-actif').checked,max:Number($('#g-max').value),budget_jour:Number($('#g-budget').value)}});
+    if(error)return toast(error.message,true);toast('Réglages enregistrés');admGroupes()};
 }
 
 // ---- Récapitulatif : les grandes lignes du tableau de bord de chaque marque ----
