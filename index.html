@@ -208,7 +208,9 @@ table.tab td.n,table.tab th.n{text-align:right}
 label.fichier{display:inline-block;cursor:pointer;color:var(--fg)}
 .lignes{display:grid;gap:8px}
 .ligne{display:grid;gap:8px;align-items:center}
-.ligne-mot,.ligne-excl,.ligne-terme{grid-template-columns:1fr auto}
+.ligne-excl,.ligne-terme{grid-template-columns:1fr auto}
+.ligne-mot{grid-template-columns:1fr 130px 1fr auto}
+.ligne-mot select{font-weight:700;text-align:center}
 .ligne-compte{grid-template-columns:130px 1fr auto}
 .ligne-hater{grid-template-columns:130px 1fr 1.4fr auto}
 .ajouter{justify-self:start}
@@ -237,6 +239,7 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:.85em}
 @media (max-width:720px){
   .identite{grid-template-columns:1fr}
   .ligne-compte{grid-template-columns:1fr auto}.ligne-compte select{grid-column:1/-1}
+  .ligne-mot{grid-template-columns:1fr auto}.ligne-mot>*{grid-column:1}.ligne-mot .retirer{grid-column:2;grid-row:1/4}
   .ligne-hater{grid-template-columns:1fr auto}.ligne-hater select,.ligne-hater input{grid-column:1}.ligne-hater .retirer{grid-column:2;grid-row:1/4}
   .crit{grid-template-columns:1fr}.crit>span{grid-column:1}
 }
@@ -770,7 +773,9 @@ async function admRecap(){
 const RESEAUX=['Facebook','TikTok','X'];
 const optReseau=v=>RESEAUX.map(r=>`<option ${r===v?'selected':''}>${r}</option>`).join('');
 const MODELES={
-  mot:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder='Ex. : "Orange Money" ET (frais OU arnaque)' maxlength="200" aria-label="Mot-clé ou requête">`},
+  mot:{vide:{a:'',op:'',b:''},html:o=>`<input type="text" data-k="a" value="${esc(o.a)}" placeholder="Premier mot-clé, ex. : Orange Money" maxlength="120" aria-label="Premier mot-clé">
+    <select data-k="op" aria-label="Connecteur"><option value="" ${!o.op?'selected':''}>—</option>${['ET','OU','SAUF'].map(x=>`<option ${o.op===x?'selected':''}>${x}</option>`).join('')}</select>
+    <input type="text" data-k="b" value="${esc(o.b)}" placeholder="Second mot-clé, ex. : frais OU arnaque" maxlength="160" aria-label="Second mot-clé">`},
   excl:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : jus d'orange" maxlength="120" aria-label="Mot à exclure">`},
   terme:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : boycott" maxlength="60" aria-label="Terme en surveillance">`},
   compte:{vide:{reseau:'Facebook',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="url" value="${esc(o.url)}" placeholder="Adresse du compte, ex. https://facebook.com/marque" aria-label="Adresse du compte">`},
@@ -793,6 +798,26 @@ function brancherLignes(racine,surChange){
     else if(b.classList.contains('retirer')){const l=b.closest('.ligne'),z=l.parentElement;
       if(z.children.length>1)l.remove();else l.querySelectorAll('input').forEach(i=>i.value='');surChange()}
   });
+}
+
+// ---- Lignes de mots-clés : premier mot · connecteur (ET, OU, SAUF) · second mot ----
+const A_OPERATEUR=/(^|\s)(ET|OU|SAUF|AND|OR|NOT)(\s|$)/i;
+function termeRequete(t){
+  t=String(t||'').trim();if(!t)return '';
+  if(/^".*"$/.test(t)&&(t.match(/"/g)||[]).length===2)return t;
+  if(A_OPERATEUR.test(t))return t.startsWith('(')&&t.endsWith(')')?t:`(${t})`;
+  if(/["()]/.test(t))return t;
+  return /\s/.test(t)?`"${t}"`:t;
+}
+function composer(o){const a=termeRequete(o.a),b=termeRequete(o.b);if(!a)return b;return o.op&&b?`${a} ${o.op} ${b}`:a}
+function decomposer(q){
+  q=String(q||'').trim();let prof=0,guil=false;
+  const net=t=>{t=t.trim();if(/^"[^"]*"$/.test(t))t=t.slice(1,-1);else if(/^\(.*\)$/.test(t)){let p=0,ok=true;for(let i=0;i<t.length;i++){if(t[i]==='(')p++;if(t[i]===')')p--;if(p===0&&i<t.length-1){ok=false;break}}if(ok)t=t.slice(1,-1).trim()}return t};
+  for(let i=0;i<q.length;i++){const ch=q[i];
+    if(ch==='"')guil=!guil;else if(!guil&&ch==='(')prof++;else if(!guil&&ch===')')prof--;
+    else if(!guil&&prof===0&&/\s/.test(ch)){const m=q.slice(i+1).match(/^(ET|OU|SAUF|AND|OR|NOT)\s+/i);
+      if(m){const op={AND:'ET',OR:'OU',NOT:'SAUF'}[m[1].toUpperCase()]||m[1].toUpperCase();return {a:net(q.slice(0,i)),op,b:net(q.slice(i+1+m[0].length))}}}}
+  return {a:net(q),op:'',b:''};
 }
 
 // ---- Requêtes booléennes : contrôle de la syntaxe (ET, OU, SAUF, "expression", parenthèses) ----
@@ -861,10 +886,10 @@ async function admFormMarque(clientId){
       <div id="z-officiels">${zoneLignes('compte',f.comptes_officiels||[],'Ajouter un compte officiel')}</div></div>
 
     <div class="bloc"><h3>Mots-clés de la veille</h3>
-      <details class="aide-requete"><summary>Écrire une requête précise</summary>
-        <p class="small">Combinez les termes pour écarter les publications hors sujet. Les accents et majuscules sont ignorés.</p>
-        <ul class="small"><li><code>"Orange Money"</code> : expression exacte</li><li><code>MTN OU Moov</code> : l’un ou l’autre</li><li><code>Orange ET (réseau OU connexion)</code> : les deux à la fois</li><li><code>Orange SAUF "jus d'orange"</code> : écarte le second terme</li></ul></details>
-      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(v=>({v})),'Ajouter un mot-clé')}</div>
+      <details class="aide-requete"><summary>Comment remplir une ligne</summary>
+        <p class="small">Chaque ligne se lit : <b>premier mot-clé</b> · <b>connecteur</b> · <b>second mot-clé</b>. Les accents et majuscules sont ignorés ; plusieurs mots dans une case forment une expression exacte.</p>
+        <ul class="small"><li><b>—</b> : le premier mot-clé seul (ex. <code>Orange CI</code>)</li><li><b>ET</b> : les deux à la fois (ex. <code>Orange Money</code> ET <code>frais OU arnaque</code>)</li><li><b>OU</b> : l’un ou l’autre (ex. <code>#OrangeEstLà</code> OU <code>#OrangeCI</code>)</li><li><b>SAUF</b> : le premier sans le second (ex. <code>Orange</code> SAUF <code>jus d'orange</code>)</li></ul></details>
+      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter un mot-clé')}</div>
       <div class="propositions" id="propositions"></div>
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
       <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
@@ -903,7 +928,7 @@ async function admFormMarque(clientId){
   };
 
   function majPropositions(){
-    const deja=new Set(lireLignes($('#z-mots .lignes')).map(o=>o.v.toLowerCase()).filter(Boolean));
+    const deja=new Set(lireLignes($('#z-mots .lignes')).map(o=>composer(o).toLowerCase()).filter(Boolean));
     const loc=propositionsLocales($('#m-nom').value,lireLignes($('#z-officiels .lignes')));
     const tout=[...loc.map(t=>({t,src:'nom et comptes'})),...sug.map(s=>({t:s.terme,src:s.occurrences+' fois dans les publications officielles'}))]
       .filter((x,i,a)=>!deja.has(x.t.toLowerCase())&&a.findIndex(y=>y.t.toLowerCase()===x.t.toLowerCase())===i);
@@ -911,14 +936,19 @@ async function admFormMarque(clientId){
       <p class="muted small" style="margin:0">Proposés à partir du nom de la marque et de ses comptes officiels${c?' ; la liste s’enrichit à chaque passage avec les termes les plus utilisés par la marque':''}.</p>`:'';
   }
   $('#propositions').addEventListener('click',e=>{const b=e.target.closest('.proposition');if(!b)return;
-    const z=$('#z-mots .lignes');const libre=[...z.querySelectorAll('input')].find(i=>!i.value.trim());
-    if(libre)libre.value=b.dataset.t;else z.insertAdjacentHTML('beforeend',ligne('mot',{v:b.dataset.t}));changer()});
+    const z=$('#z-mots .lignes'),o=decomposer(b.dataset.t);
+    const libre=[...z.querySelectorAll(':scope > .ligne')].find(l=>[...l.querySelectorAll('input')].every(i=>!i.value.trim()));
+    if(libre){libre.querySelector('[data-k=a]').value=o.a;libre.querySelector('[data-k=op]').value=o.op;libre.querySelector('[data-k=b]').value=o.b}
+    else z.insertAdjacentHTML('beforeend',ligne('mot',o));changer()});
   majPropositions();
 
   form.onsubmit=async e=>{
     e.preventDefault();
     const nom=$('#m-nom').value.trim();if(nom.length<2){$('#m-nom').focus();return toast('Indiquez le nom de la marque.',true)}
-    const mots=lireLignes($('#z-mots .lignes')).map(o=>o.v).filter(Boolean);
+    const lignesMots=lireLignes($('#z-mots .lignes'));
+    const incomplet=lignesMots.find(o=>(o.op&&(!o.a||!o.b))||(!o.op&&o.b));
+    if(incomplet)return toast(incomplet.op?`Connecteur ${incomplet.op} : renseignez les deux mots-clés de la ligne.`:'Choisissez un connecteur (ET, OU, SAUF) entre les deux mots-clés.',true);
+    const mots=lignesMots.map(composer).filter(Boolean);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
       mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
