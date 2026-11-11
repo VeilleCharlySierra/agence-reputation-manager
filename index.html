@@ -428,6 +428,10 @@ body.rapport-ouvert{overflow:hidden}
 .page.six .r-corps{min-height:0;overflow:hidden}
 .nuage{min-height:95mm!important;font-size:1.15rem}
 @media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis.cinq{grid-template-columns:repeat(2,minmax(0,1fr))}.r-att-corps{grid-template-columns:1fr}.r-att-capture{width:100%}.page.six .r-pubs{grid-template-rows:none}.deux,.r-pubs{grid-template-columns:1fr}.c-bande dl{grid-template-columns:1fr}}
+/* Export paysage (récapitulatif) */
+.r-doc.export.paysage{width:297mm}
+.r-doc.export.paysage .page{width:297mm!important;height:210mm!important;min-height:210mm!important}
+.recap-pdf td,.recap-pdf th{padding:7px 8px;font-size:.85rem}
 /* Export PDF : pages A4 rendues hors écran, mise en page bureau quelle que soit la taille de l'écran */
 .r-doc.export{position:fixed;left:-10000px;top:0;width:210mm;display:block!important;padding:0!important;gap:0;pointer-events:none}
 .r-doc.export .page{width:210mm!important;height:297mm!important;min-height:297mm!important;box-shadow:none;margin:0}
@@ -916,7 +920,8 @@ async function admRecap(){
   });
   const tot=k=>lignes.reduce((s,l)=>s+l[k],0);
   const tendance=ev=>ev==null?'<span class="muted">—</span>':`<span class="${ev>0?'hausse':ev<0?'baisse':''}">${ev>0?'▲ +':ev<0?'▼ ':''}${ev} %</span>`;
-  z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Récapitulatif des marques</h3>${periodeHTML()}</div><p class="muted small" style="margin:0">Période : ${libellePeriode()}.</p>
+  z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Récapitulatif des marques</h3>${periodeHTML()}</div>
+    <div class="entete-vue"><p class="muted small" style="margin:0">Période : ${libellePeriode()}.</p>${S.clients.length?'<button class="btn" type="button" id="recap-pdf">Télécharger le récapitulatif (PDF)</button>':''}</div>
     <div class="chiffres">
       <div class="chiffre"><b class="num">${S.clients.length}</b><span>marques suivies</span></div>
       <div class="chiffre"><b class="num">${tot('n')}</b><span>publications remontées</span></div>
@@ -927,6 +932,25 @@ async function admRecap(){
     ${lignes.map(l=>`<tr><td><div class="marque-cell">${l.c.logo_url?`<img src="${esc(l.c.logo_url)}" alt="">`:''}<b>${esc(l.c.nom)}</b>${l.c.actif?'':' <span class="puce">Suspendue</span>'}</div></td><td class="n num">${l.n}</td><td class="n num">${tendance(l.ev)}</td><td class="n num">${pct(l.neg,l.n)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a?`<span class="puce Négatif">${l.a}</span>`:'0'}</td><td class="n num">${l.s}</td><td class="small">${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="small num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
     </tbody></table></div><p class="muted small">Évolution : nombre de publications comparé à la période de même durée qui précède.</p>`:'<p class="muted small">Aucune marque suivie.</p>'}</div>`;
   brancherPeriode(z,S,admRecap);
+  const bp=$('#recap-pdf');if(bp)bp.onclick=async()=>{
+    if(exportEnCours)return toast('Un PDF est déjà en préparation.');
+    exportEnCours=true;bp.disabled=true;
+    try{toast('Préparation du PDF…');await chargerBiblios();
+      const per=libellePeriode(),le=jour(new Date());
+      const ev=e=>e==null?'—':(e>0?'▲ +':e<0?'▼ ':'')+e+' %';
+      const tete=t=>`<header class="r-entete"><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><div class="r-ent-titre"><h2>${t}</h2><span>${esc(IMAGE.nom_agence)} · ${esc(per)} · édité le ${le}</span></div></header>`;
+      const pied=(n,t)=>`<footer class="r-pied"><span>Document confidentiel · usage interne</span><span>${n} / ${t}</span></footer>`;
+      const paquets=[];for(let i=0;i<lignes.length;i+=8)paquets.push(lignes.slice(i,i+8));
+      const html=paquets.map((pq,k)=>`<section class="page">${tete(k?'Récapitulatif des marques (suite)':'Récapitulatif des marques')}<div class="r-corps">
+        ${k?'':`<div class="kpis"><div><b class="num">${S.clients.length}</b><span>marques suivies</span></div><div><b class="num">${nb(tot('n'))}</b><span>publications remontées</span></div><div><b class="num">${pct(tot('neg'),tot('n'))}</b><span>de publications négatives</span></div><div><b class="num">${tot('a')}</b><span>points d’attention en cours</span></div></div>`}
+        <table class="r-tab recap-pdf"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Évolution</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d’attention</th><th class="n">Suivies</th><th>Thème dominant</th><th>Dernier rapport</th></tr></thead><tbody>
+        ${pq.map(l=>`<tr><td><b>${esc(l.c.nom)}</b>${l.c.actif?'':' (suspendue)'}</td><td class="n num">${nb(l.n)}</td><td class="n num">${ev(l.ev)}</td><td class="n num">${pct(l.neg,l.n)}</td><td class="n num">${nb(l.inter)}</td><td class="n num">${l.a}</td><td class="n num">${l.s}</td><td>${l.theme?esc(l.theme[0])+' ('+l.theme[1]+')':'—'}</td><td class="num">${l.r?date(l.r.cree_le):'—'}</td></tr>`).join('')}
+        </tbody></table>
+        <p class="note">Évolution : nombre de publications comparé à la période de même durée qui précède. Chaque marque est analysée séparément ; ce récapitulatif est réservé à l’administration de l’agence.</p>
+        </div>${pied(k+1,paquets.length)}</section>`).join('');
+      await exporterPDF(html,`Recapitulatif-des-marques-${new Date().toISOString().slice(0,10)}`,true);
+    }catch(e){toast('Téléchargement impossible : '+e.message,true)}
+    finally{exportEnCours=false;bp.disabled=false}};
 }
 
 // ---- Lignes de saisie (mots-clés, comptes, haters…) ----
@@ -1233,17 +1257,16 @@ const versLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString()
 async function vueRapports(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const {data,error}=await filtreClient(SB.from('rapports').select('id,client_id,type,debut,fin,cree_le,cree_par,envoi_prevu,envoye_le')).order('cree_le',{ascending:false}).limit(100);
-  const ms=S.clients.filter(x=>String(x.id)===String(S.client));
+  const marque=S.clients.find(x=>String(x.id)===String(S.client));
   const maintenant=new Date();
-  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports</h2></div>
-    <form class="bloc" id="f-rapport"><h3>Générer un rapport</h3><p class="muted small" style="margin:0">Un rapport ne couvre qu’une seule marque.</p>
-      <div class="row"><label>Marque<select id="r-marque">${ms.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('')}</select></label>
-      <label>Période<select id="r-periode"><option value="24">Dernières 24 heures</option><option value="48">Dernières 48 heures</option><option value="72">Dernières 72 heures</option><option value="perso">Dates choisies</option></select></label></div>
+  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports · ${esc(marque?.nom||'')}</h2></div>
+    <form class="bloc" id="f-rapport"><h3>Générer un rapport</h3><p class="muted small" style="margin:0">Le rapport porte uniquement sur ${esc(marque?.nom||'la marque choisie')}. Pour une autre marque, choisissez-la dans la barre des marques.</p>
+      <div class="row"><label>Période<select id="r-periode"><option value="24">Dernières 24 heures</option><option value="48">Dernières 48 heures</option><option value="72">Dernières 72 heures</option><option value="perso">Dates choisies</option></select></label></div>
       <div class="row" id="r-dates" hidden><label>Du<input type="datetime-local" id="r-debut" value="${versLocal(new Date(maintenant-864e5))}"></label><label>Au<input type="datetime-local" id="r-fin" value="${versLocal(maintenant)}"></label></div>
-      <div class="row"><button class="btn" type="submit" id="r-btn" ${ms.length?'':'disabled'}>Générer et télécharger</button></div></form>
-    <div class="bloc"><h3>Rapports disponibles</h3><p class="muted small" style="margin:0">Le rapport quotidien de chaque marque est produit chaque matin. Son envoi par e-mail aux utilisateurs de la marque et aux responsables de comptes de l’agence sera activé à la mise en service.</p>
-      ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Type</th><th>Période couverte</th><th>Produit le</th><th>Envoi</th><th></th></tr></thead><tbody>
-      ${data.map(r=>`<tr><td><b>${esc(nomClient(r.client_id))}</b></td><td>${r.type==='quotidien'?'Quotidien':'À la demande'}</td><td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td class="small">${r.envoye_le?'Envoyé le '+jourHeure(r.envoye_le):r.type==='quotidien'?'Non envoyé (envoi désactivé)':'—'}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
+      <div class="row"><button class="btn" type="submit" id="r-btn" ${marque?'':'disabled'}>Générer et télécharger</button></div></form>
+    <div class="bloc"><h3>Rapports disponibles</h3><p class="muted small" style="margin:0">Le rapport quotidien de la marque est produit chaque matin. Son envoi par e-mail aux utilisateurs de la marque et aux responsables de comptes de l’agence sera activé à la mise en service.</p>
+      ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Type</th><th>Période couverte</th><th>Produit le</th><th>Envoi</th><th></th></tr></thead><tbody>
+      ${data.map(r=>`<tr><td><b>${r.type==='quotidien'?'Quotidien':'À la demande'}</b></td><td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td class="small">${r.envoye_le?'Envoyé le '+jourHeure(r.envoye_le):r.type==='quotidien'?'Non envoyé (envoi désactivé)':'—'}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
   $('#r-periode').onchange=e=>$('#r-dates').hidden=e.target.value!=='perso';
   $('#f-rapport').onsubmit=async e=>{e.preventDefault();
     let fin=new Date(),debut;
@@ -1252,7 +1275,7 @@ async function vueRapports(){
       if(fin-debut>31*864e5)return toast('La période ne peut pas dépasser 31 jours.',true)}
     else debut=new Date(fin-Number($('#r-periode').value)*36e5);
     $('#r-btn').disabled=true;
-    const {data:id,error}=await SB.rpc('enregistrer_rapport_demande',{p_client:Number($('#r-marque').value),p_debut:debut.toISOString(),p_fin:fin.toISOString()});
+    const {data:id,error}=await SB.rpc('enregistrer_rapport_demande',{p_client:Number(S.client),p_debut:debut.toISOString(),p_fin:fin.toISOString()});
     $('#r-btn').disabled=false;
     if(error)return toast(error.message,true);
     await vueRapports();telechargerRapport(id)};
@@ -1374,15 +1397,10 @@ function chargerBiblios(){
   return biblios||(biblios=Promise.all(BIBLIOS.map(u=>new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src=u;sc.crossOrigin='anonymous';sc.onload=ok;sc.onerror=()=>{biblios=null;ko(new Error('module PDF indisponible'))};document.head.appendChild(sc)}))));
 }
 let exportEnCours=false;
-async function telechargerRapport(id,bouton){
-  if(exportEnCours)return toast('Un PDF est déjà en préparation.');
-  exportEnCours=true;if(bouton)bouton.disabled=true;
-  const zone=document.createElement('div');zone.className='r-doc export';zone.setAttribute('aria-hidden','true');
+// Produit un PDF à partir de pages A4 (portrait, ou paysage pour le récapitulatif) et le télécharge, sans quitter la plateforme
+async function exporterPDF(html,nom,paysage=false){
+  const zone=document.createElement('div');zone.className='r-doc export'+(paysage?' paysage':'');zone.setAttribute('aria-hidden','true');
   try{
-    toast('Préparation du PDF…');
-    const [{data:r,error}]=await Promise.all([SB.from('rapports').select('*').eq('id',id).single(),chargerBiblios()]);
-    if(error)throw new Error(error.message);
-    const {nom,html}=pagesRapport(r);
     zone.innerHTML=html;document.body.appendChild(zone);
     // captures des réseaux : passées par le relais d'images de la plateforme pour être lisibles dans le PDF
     zone.querySelectorAll('img.r-capture,img.r-att-capture').forEach(im=>{try{const u=new URL(im.getAttribute('src'),location.href);if(u.origin!==location.origin&&!u.hostname.endsWith('.supabase.co'))im.src=SB_URL+'/functions/v1/image?u='+encodeURIComponent(u.href)}catch{}});
@@ -1390,18 +1408,30 @@ async function telechargerRapport(id,bouton){
     await Promise.all([...zone.querySelectorAll('img')].map(im=>new Promise(fin=>{
       const t=new Image();t.crossOrigin='anonymous';t.onload=()=>fin();t.onerror=()=>{if(im.matches('.r-capture,.r-att-capture'))im.remove();else im.style.visibility='hidden';fin()};t.src=im.src;setTimeout(fin,8000)})));
     if(document.fonts?.ready)await document.fonts.ready;
-    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:paysage?'landscape':'portrait',compress:true});
+    const [l,h]=paysage?[297,210]:[210,297];
     const pages=[...zone.querySelectorAll('.page')];
     for(let i=0;i<pages.length;i++){
       toast(`Préparation du PDF… page ${i+1} sur ${pages.length}`);
       const cv=await window.html2canvas(pages[i],{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
       if(i)pdf.addPage();
-      pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,210,297,undefined,'FAST');
+      pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,l,h,undefined,'FAST');
     }
     pdf.save(nom+'.pdf');
     toast('PDF téléchargé');
+  }finally{zone.remove()}
+}
+async function telechargerRapport(id,bouton){
+  if(exportEnCours)return toast('Un PDF est déjà en préparation.');
+  exportEnCours=true;if(bouton)bouton.disabled=true;
+  try{
+    toast('Préparation du PDF…');
+    const [{data:r,error}]=await Promise.all([SB.from('rapports').select('*').eq('id',id).single(),chargerBiblios()]);
+    if(error)throw new Error(error.message);
+    const {nom,html}=pagesRapport(r);
+    await exporterPDF(html,nom);
   }catch(e){toast('Téléchargement impossible : '+e.message,true)}
-  finally{zone.remove();exportEnCours=false;if(bouton)bouton.disabled=false}
+  finally{exportEnCours=false;if(bouton)bouton.disabled=false}
 }
 
 SB.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){S.moi=null;afficher('connexion')}});
