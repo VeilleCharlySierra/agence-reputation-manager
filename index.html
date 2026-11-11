@@ -696,6 +696,12 @@ function controleRequete(q){
   if(op(j[0]))return 'la requête ne peut pas commencer par un opérateur';
   if(op(j[j.length-1]))return 'la requête ne peut pas finir par un opérateur';
   for(let i=1;i<j.length;i++)if(op(j[i])&&op(j[i-1]))return 'deux opérateurs se suivent';
+  // sigle court sans contexte : trop d'homonymes dans le monde (ex. « OCI »)
+  if(!/\b(ET|AND|SAUF|NOT)\b/i.test(q)){
+    const termes=q.replace(/\b(OU|OR)\b/gi,'|').split('|').map(t=>t.replace(/[()"]/g,'').trim()).filter(Boolean);
+    const court=termes.find(t=>!/\s/.test(t)&&t.replace(/[^\p{L}\p{N}]/gu,'').length<=4);
+    if(court)return `« ${court} » est un sigle court : précisez le contexte, par exemple ${court} ET (marque OU ville)`;
+  }
   return '';
 }
 
