@@ -276,7 +276,43 @@ body.rapport-ouvert{overflow:hidden}
 .r-tags{color:#4c5044}
 .r-pub a{color:#4a5a00;overflow-wrap:anywhere;font-size:.72rem}
 .r-pied{display:flex;justify-content:space-between;gap:10px;padding:3mm 10mm;font-size:.7rem;color:#6b6f63;border-top:1px solid #e3e5dc}
-@media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.deux,.r-pubs{grid-template-columns:1fr}.c-bande dl{grid-template-columns:1fr}}
+.c-haut{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.c-mention{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#cfd3c4;text-align:right;max-width:55%}
+.c-sur{display:block;font:600 .78rem var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--r-acc);margin-bottom:8px}
+.sommaire{position:relative;list-style:none;padding:0;margin:10mm 0 0;display:grid;gap:8px;min-width:60%;counter-reset:s}
+.sommaire li{display:flex;align-items:center;gap:10px;border-bottom:1px solid #333;padding:6px 0;font:500 1rem var(--display)}
+.sommaire li::before{content:"";width:8px;height:8px;background:var(--r-acc);border-radius:2px}
+.r-ent-titre{flex:1;display:grid;gap:2px}
+.r-ent-titre span{font-size:.72rem;color:#cfd3c4}
+.kpis.cinq{grid-template-columns:repeat(5,minmax(0,1fr))}
+.kpis b.sm{font-size:.95rem;line-height:1.2}
+.colonnes{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;height:44mm;align-items:end;border-bottom:1px solid #e3e5dc;padding-bottom:4px}
+.colonnes .col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;font-size:.75rem}
+.colonnes .barre-v{width:70%;background:#111;border-top:3px solid var(--r-acc);border-radius:3px 3px 0 0;min-height:2px}
+.colonnes .lib{color:#6b6f63}
+.nuage{text-align:center;line-height:1.35;padding:8px 4px;border:1px solid #e3e5dc;border-radius:8px;min-height:50mm;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 10px}
+.nuage span{color:#3a3d33}
+.nuage span.fort{color:#111;background:linear-gradient(transparent 62%,color-mix(in srgb,var(--r-acc) 70%,transparent) 62%)}
+.r-atts{display:grid;gap:10px}
+.r-att{border:1px solid #e3e5dc;border-radius:8px;overflow:hidden;break-inside:avoid}
+.r-att-corps{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:9px}
+.r-att-capture{width:62mm;max-height:80mm;object-fit:contain;background:#f3f4ee;border-radius:4px}
+.r-att-infos{display:grid;gap:5px;font-size:.82rem;align-content:start}
+.r-motifs{display:flex;flex-wrap:wrap;gap:4px}
+.r-motifs span{background:#f3f4ee;border:1px solid #e3e5dc;border-radius:10px;padding:1px 8px;font-size:.72rem}
+.r-motifs .statut{background:#111;color:var(--r-acc);border-color:#111}
+.r-texte-plein{overflow-wrap:anywhere}
+.r-chiffres{display:flex;flex-wrap:wrap;gap:4px 14px}
+.page.six .r-pubs{grid-template-rows:repeat(3,minmax(0,1fr));flex:1}
+.page.six .r-corps{display:flex;flex-direction:column}
+.r-texte.court{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.r-texte.long{display:-webkit-box;-webkit-line-clamp:10;-webkit-box-orient:vertical;overflow:hidden}
+.page.six .r-capture{height:30mm;max-height:30mm;flex:0 0 auto}
+.page.six .r-pub{min-height:0}
+.page.six .r-pub-corps{min-height:0;overflow:hidden;gap:2px;font-size:.76rem}
+.page.six .r-corps{min-height:0;overflow:hidden}
+.nuage{min-height:95mm!important;font-size:1.15rem}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis.cinq{grid-template-columns:repeat(2,minmax(0,1fr))}.r-att-corps{grid-template-columns:1fr}.r-att-capture{width:100%}.page.six .r-pubs{grid-template-rows:none}.deux,.r-pubs{grid-template-columns:1fr}.c-bande dl{grid-template-columns:1fr}}
 @media print{
   @page{size:A4;margin:0}
   html,body{background:#fff!important}
@@ -288,7 +324,7 @@ body.rapport-ouvert{overflow:hidden}
   .page{width:210mm;min-height:297mm;height:297mm;box-shadow:none;break-after:page}
   .page.flux{height:auto;min-height:297mm}
   .r-pubs{grid-template-columns:1fr 1fr}
-  .kpis{grid-template-columns:repeat(4,1fr)}.deux{grid-template-columns:1.4fr 1fr}.c-bande dl{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:repeat(4,1fr)}.kpis.cinq{grid-template-columns:repeat(5,1fr)}.r-att-corps{grid-template-columns:auto 1fr}.r-att-capture{width:62mm}.page.six .r-pubs{grid-template-rows:repeat(3,minmax(0,1fr))}.deux{grid-template-columns:1.4fr 1fr}.c-bande dl{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -911,7 +947,7 @@ async function vueRapports(){
   c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>ouvrirRapport(Number(b.dataset.v)));
 }
 
-// Synthèse factuelle, utilisée quand le rapport n'a pas de synthèse rédigée
+// Synthèse factuelle, utilisée quand le rapport n'a pas de synthèse rédigée (aucune interprétation, aucun qualificatif)
 function syntheseAuto(d){
   const f=[],a=[];
   const reseaux=Object.entries(d.par_reseau||{}).sort((x,y)=>y[1]-x[1]);
@@ -919,79 +955,104 @@ function syntheseAuto(d){
   else{
     f.push(`${d.total} publication${d.total>1?'s':''} sur la marque remontée${d.total>1?'s':''}, dont ${d.negatives} négative${d.negatives>1?'s':''} (${pct(d.negatives,d.total)}).`);
     if(reseaux.length)f.push('Répartition par réseau : '+reseaux.map(([r,n])=>`${r} ${n}`).join(', ')+'.');
-    const t=(d.themes||[]).filter(x=>x.theme!=='Non classé')[0];if(t)f.push(`Thème le plus présent : ${t.theme} (${t.n} publication${t.n>1?'s':''}, ${nb(t.interactions)} interactions).`);
-    const top=(d.publications||[])[0];if(top&&interactions(top))f.push(`Publication la plus engageante : ${top.auteur||'auteur inconnu'} sur ${top.plateforme} (${nb(interactions(top))} interactions).`);
+    const t=(d.themes||[]).filter(x=>x.theme!=='Non classé')[0];if(t)f.push(`Thématique la plus présente : ${t.theme} (${t.n} publication${t.n>1?'s':''}, ${nb(t.interactions)} interactions).`);
+    const l=(d.lieux||[])[0];if(l)f.push(`Localité la plus citée : ${l.lieu} (${l.n}).`);
+    const top=(d.publications||[])[0];if(top&&interactions(top))f.push(`Publication la plus engageante : ${top.auteur||'auteur non disponible'} sur ${top.plateforme} (${nb(interactions(top))} interactions).`);
   }
-  for(const x of (d.attention||[]).slice(0,6))a.push(`${x.auteur||'Auteur inconnu'} (${x.plateforme}) : ${x.titre||''}${x.statut?' · '+x.statut:''}`);
+  for(const x of (d.attention||[]).slice(0,6))a.push(`${x.auteur||'Auteur non disponible'} (${x.plateforme})${x.titre?' : '+x.titre:''} · ${(x.motifs||[]).join(', ')||'point d’attention'} · ${x.statut||'en cours'}`);
   if(!a.length)a.push('Aucun point d’attention en cours.');
   return {faits:f,attention:a};
 }
+
+// ===== Rapport : organisation inspirée du rapport CIE, une seule marque, image de marque de la plateforme =====
 async function ouvrirRapport(id){
   const {data:r,error}=await SB.from('rapports').select('*').eq('id',id).single();
   if(error)return toast('Ouverture impossible : '+error.message,true);
   const d=r.contenu||{},syn=Object.assign(syntheseAuto(d),r.synthese||{});
+  const nd=v=>v==null?'non disponible':nb(v);
   const tot=d.total||0,ton=d.tonalite||{};
-  const nNeg=ton['Négatif']||0,nNeu=(ton['Neutre']||0)+(ton['Non classé']||0),nPos=ton['Positif']||0,nT=nNeg+nNeu+nPos||1;
-  const a1=nNeg*360/nT,a2=a1+nNeu*360/nT;
-  const barres=(l,cle,lib)=>{const max=Math.max(1,...l.map(x=>x[cle]));return l.length?`<div class="barres">${l.map(x=>`<div class="barre"><span class="lib">${esc(x[lib])}</span><span class="piste"><i style="width:${Math.max(2,x[cle]*100/max)}%"></i></span><b class="num">${nb(x[cle])}</b></div>`).join('')}</div>`:'<p class="vide-r">Aucune donnée sur la période.</p>'};
-  const themes=(d.themes||[]),principaux=themes.slice(0,6),autres=themes.slice(6);
-  const logoClient=d.logo?`<img src="${esc(d.logo)}" alt="${esc(d.marque)}">`:`<b>${esc(d.marque)}</b>`;
+  const quotidien=r.type==='quotidien';
+  const titre=quotidien?'Rapport quotidien de veille':'Rapport de veille';
   const periode=`du ${jourHeure(r.debut)} au ${jourHeure(r.fin)}`;
-  const titre=r.type==='quotidien'?'Rapport quotidien de veille e-réputationnelle':'Rapport de veille e-réputationnelle';
-  const pied=n=>`<footer class="r-pied"><span>${esc(IMAGE.nom_plateforme)} · ${esc(d.marque)} · Confidentiel</span><span>${n}</span></footer>`;
-  const entete=t=>`<header class="r-entete"><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><h2>${t}</h2><div class="r-logo-client">${logoClient}</div></header>`;
-  const cartePub=p=>{const lien=lienSur(p.lien);return `<article class="r-pub ${esc(p.sentiment||'')}"><div class="r-pub-tete">${esc((p.plateforme||'').toUpperCase())}</div>
+  const dateR=jour(r.cree_le);
+  const logoClient=d.logo?`<img src="${esc(d.logo)}" alt="${esc(d.marque)}">`:`<b>${esc(d.marque)}</b>`;
+  const themes=(d.themes||[]),dominant=themes.find(x=>x.theme!=='Non classé');
+
+  // graphiques
+  const barres=(l,cle,lib)=>{const max=Math.max(1,...l.map(x=>x[cle]));return l.length?`<div class="barres">${l.map(x=>`<div class="barre"><span class="lib">${esc(x[lib])}</span><span class="piste"><i style="width:${Math.max(2,x[cle]*100/max)}%"></i></span><b class="num">${nb(x[cle])}</b></div>`).join('')}</div>`:'<p class="vide-r">Aucune donnée sur la période.</p>'};
+  const nNeg=ton['Négatif']||0,nNeu=ton['Neutre']||0,nPos=ton['Positif']||0,nT=nNeg+nNeu+nPos;
+  const a1=nT?nPos*360/nT:0,a2=nT?a1+nNeu*360/nT:0;
+  const camemb=nT?`<div class="camembert" style="background:conic-gradient(var(--r-pos) 0 ${a1}deg,var(--r-neu) ${a1}deg ${a2}deg,var(--r-neg) ${a2}deg 360deg)"></div>
+    <ul class="legende"><li><i style="background:var(--r-pos)"></i>Positif ${pct(nPos,nT)}</li><li><i style="background:var(--r-neu)"></i>Neutre ${pct(nNeu,nT)}</li><li><i style="background:var(--r-neg)"></i>Négatif ${pct(nNeg,nT)}</li></ul>`:'<p class="vide-r">Aucune publication analysée sur la période.</p>';
+  const tr=d.tranches||[],maxT=Math.max(1,...tr.map(x=>x.n));
+  const heure=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',timeZone:'UTC'}).replace(':00','')+'h';
+  const tranches=tr.length?`<div class="colonnes">${tr.map(x=>`<div class="col"><b class="num">${x.n}</b><span class="barre-v" style="height:${Math.max(2,x.n*100/maxT)}%"></span><span class="lib">${heure(x.debut)}</span></div>`).join('')}</div>`:'<p class="vide-r">Non disponible.</p>';
+  const mots=d.mots||[],maxM=Math.max(1,...mots.map(x=>x.n)),minM=Math.min(...mots.map(x=>x.n),maxM);
+  const nuage=mots.length?`<div class="nuage">${[...mots].sort((x,y)=>x.mot.localeCompare(y.mot,'fr')).map(x=>{const k=maxM===minM?.5:(x.n-minM)/(maxM-minM);return `<span style="font-size:${(.85+k*2.1).toFixed(2)}em;font-weight:${k>.5?700:500}" class="${k>.6?'fort':''}">${esc(x.mot)}</span>`}).join(' ')}</div>`:'<p class="vide-r">Aucun mot sur la période.</p>';
+
+  // fiches
+  const cartePub=p=>{const lien=lienSur(p.lien);return `<article class="r-pub ${esc(p.sentiment||'')}"><div class="r-pub-tete">${esc((p.plateforme||'').toUpperCase())}${p.attention?' · POINT D’ATTENTION':''}</div>
     ${p.capture?`<img class="r-capture" src="${esc(p.capture)}" alt="" loading="lazy">`:''}
-    <div class="r-pub-corps"><b>${esc(p.auteur||'Auteur inconnu')}</b>
-    <div class="r-dates">Publiée le ${p.publiee_le?jourHeure(p.publiee_le):'—'}<br>Remontée le ${p.remontee_le?jourHeure(p.remontee_le):'—'}</div>
-    ${p.titre?`<div class="r-titre">${esc(p.titre)}</div>`:''}<div class="r-texte">${esc((p.texte||'').slice(0,360))}${(p.texte||'').length>360?'…':''}</div>
-    <div class="r-stats num">${nb(p.jaime)} j'aime · ${nb(p.com)} commentaires · ${nb(p.part)} partages</div>
-    <div class="r-tags">${[p.theme,p.lieu,p.sentiment].filter(Boolean).map(esc).join(' · ')}</div>
-    ${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">${esc(lien.length>60?lien.slice(0,60)+'…':lien)}</a>`:''}</div></article>`};
+    <div class="r-pub-corps"><b>${esc(p.auteur||'Auteur non disponible')}</b>
+    <div class="r-dates">Publiée le ${p.publiee_le?jourHeure(p.publiee_le):'non disponible'} · remontée le ${p.remontee_le?jourHeure(p.remontee_le):'non disponible'}</div>
+    ${p.titre?`<div class="r-titre">${esc(p.titre)}</div>`:''}<div class="r-texte ${p.capture?'court':'long'}">${esc(p.texte||'Texte non disponible.')}</div>
+    <div class="r-stats num">${nd(p.jaime)} j'aime · ${nd(p.com)} commentaires · ${nd(p.part)} partages</div>
+    <div class="r-tags">${[p.theme,p.lieu,p.sentiment].filter(Boolean).map(esc).join(' · ')||'Analyse non disponible'}</div>
+    ${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">${esc(lien.length>70?lien.slice(0,70)+'…':lien)}</a>`:''}</div></article>`};
+  const ficheAtt=x=>{const lien=lienSur(x.lien);return `<article class="r-att"><div class="r-pub-tete">${esc((x.plateforme||'').toUpperCase())} · POINT D’ATTENTION${x.epingle?' · ÉPINGLÉ':''}</div>
+    <div class="r-att-corps">${x.capture?`<img class="r-att-capture" src="${esc(x.capture)}" alt="">`:''}
+    <div class="r-att-infos"><b>${esc(x.auteur||'Auteur non disponible')}</b>
+      <div class="r-dates">Publiée le ${x.publiee_le?jourHeure(x.publiee_le):'non disponible'} · remontée le ${x.remontee_le?jourHeure(x.remontee_le):'non disponible'}</div>
+      <div class="r-motifs">${(x.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}<span class="statut">${esc(x.statut||'En cours')}</span></div>
+      ${x.titre?`<div class="r-titre">${esc(x.titre)}</div>`:''}
+      <div class="r-texte-plein">${x.texte?'« '+esc(x.texte)+' »':'Texte non disponible.'}</div>
+      <div class="r-chiffres num"><span><b>${nd(x.jaime)}</b> j'aime</span><span><b>${nd(x.com)}</b> commentaires</span><span><b>${nd(x.part)}</b> partages</span><span><b>${nd(x.vues)}</b> vues</span></div>
+      <div class="r-tags">${[x.theme,x.lieu,x.sentiment].filter(Boolean).map(esc).join(' · ')}</div>
+      ${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">${esc(lien.length>80?lien.slice(0,80)+'…':lien)}</a>`:''}</div></div></article>`};
+
+  // pages intérieures numérotées
+  const interieures=[];
+  const page=(section,corps,cls='')=>interieures.push({section,corps,cls});
+  page('Synthèse',`<p class="r-periode"><b>Période couverte :</b> ${periode}</p>
+    <div class="kpis"><div><b class="num">${nb(tot)}</b><span>publications remontées</span></div><div><b class="num">${pct(d.negatives||0,tot)}</b><span>de publications négatives</span></div><div><b class="num">${nb((d.jaime||0)+(d.com||0)+(d.part||0))}</b><span>interactions</span></div><div><b class="num">${(d.attention||[]).length}</b><span>points d’attention actifs</span></div></div>
+    <h3>Faits marquants</h3><ul>${(syn.faits||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    <h3>Points d’attention</h3><ul>${(syn.attention||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`);
+  page('01 – Tableau de bord',`<div class="kpis cinq"><div><b class="num">${nb(tot)}</b><span>publications</span></div><div><b class="num">${pct(d.negatives||0,tot)}</b><span>négatives</span></div><div><b class="num">${nb((d.jaime||0)+(d.com||0)+(d.part||0))}</b><span>interactions</span></div><div><b class="num">${(d.attention||[]).length}</b><span>points d’attention actifs</span></div><div><b class="sm">${dominant?esc(dominant.theme):'non disponible'}</b><span>thème dominant</span></div></div>
+    <h3>Publications par tranche de 3 heures</h3>${tranches}
+    <div class="deux"><div><h3>Thématiques</h3>${barres(themes.slice(0,8),'n','theme')}</div><div><h3>Sens des publications</h3>${camemb}</div></div>
+    <div class="kpis"><div><b class="num">${nb(d.jaime)}</b><span>j'aime</span></div><div><b class="num">${nb(d.com)}</b><span>commentaires</span></div><div><b class="num">${nb(d.part)}</b><span>partages</span></div><div><b class="num">${Object.keys(d.par_reseau||{}).length}</b><span>réseaux</span></div></div>`);
+  page('01 – Tableau de bord (suite)',`<h3>Nuage de mots</h3>${nuage}
+    <div class="deux"><div><h3>Localités citées</h3>${barres((d.lieux||[]).slice(0,10),'n','lieu')}</div><div><h3>Interactions par thématique</h3>${barres(themes.slice(0,10).map(x=>({theme:x.theme,i:x.interactions||0})),'i','theme')}</div></div>
+    <h3>Publications par réseau</h3>${barres(Object.entries(d.par_reseau||{}).map(([k,v])=>({k,v})).sort((x,y)=>y.v-x.v),'v','k')}
+    <p class="note">Base : publications publiques remontées sur la marque pendant la période, hors canaux officiels et concurrents ; mêmes chiffres que le tableau de bord de la plateforme.</p>`);
+  // points d'attention : jamais coupés, un ou deux par page selon leur taille
+  const att=d.attention||[];
+  if(!att.length)page('02 – Points d’attention','<p class="vide-r">Aucun point d’attention en cours sur la période.</p>');
+  else{let lot=[],poids=0;const vider=()=>{if(lot.length){page(interieures.some(p=>p.section.startsWith('02'))?'02 – Points d’attention (suite)':'02 – Points d’attention',`<div class="r-atts">${lot.map(ficheAtt).join('')}</div>`);lot=[];poids=0}};
+    for(const x of att){const w=(x.texte||'').length>(x.capture?380:750)?2:1;if(poids+w>2)vider();lot.push(x);poids+=w}vider()}
+  // publications remontées : 6 par page, deux colonnes
+  const pubs=d.publications||[];
+  if(!pubs.length)page('03 – Publications remontées','<p class="vide-r">Aucune publication sur la période.</p>');
+  for(let i=0;i<pubs.length;i+=6)page(i?'03 – Publications remontées (suite)':'03 – Publications remontées',`<div class="r-pubs">${pubs.slice(i,i+6).map(cartePub).join('')}</div>`,'six');
+
+  const total=interieures.length+3;
+  const entete=s=>`<header class="r-entete"><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><div class="r-ent-titre"><h2>${esc(s)}</h2><span>${esc(d.marque)} · ${titre} du ${dateR}</span></div><div class="r-logo-client">${logoClient}</div></header>`;
+  const pied=n=>`<footer class="r-pied"><span>Document confidentiel · usage interne</span><span>${n} / ${total}</span></footer>`;
   const el=$('#rapport');
   el.innerHTML=`<div class="r-outils"><button class="btn sec" type="button" id="r-fermer">Fermer</button><span class="small muted">${esc(d.marque)} · ${periode}</span><button class="btn" type="button" id="r-imprimer">Télécharger en PDF</button></div>
   <div class="r-doc">
     <section class="page couverture">
       <div class="motif" aria-hidden="true"></div>
-      <img class="c-logo" src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}">
-      <div class="c-titre"><h1>${titre}</h1></div>
+      <div class="c-haut"><img class="c-logo" src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><span class="c-mention">Document confidentiel · usage interne, diffusion restreinte</span></div>
+      <div class="c-titre"><span class="c-sur">Plateforme de veille réseaux sociaux</span><h1>${titre}</h1></div>
       <div class="c-bande">
-        <dl><div><dt>Émis par</dt><dd>${esc(IMAGE.nom_agence)}</dd></div><div><dt>Marque</dt><dd>${esc(d.marque)}</dd></div><div><dt>Date</dt><dd>${jour(r.cree_le)}</dd></div><div><dt>Période</dt><dd>${periode}</dd></div></dl>
+        <dl><div><dt>Émis par</dt><dd>${esc(IMAGE.nom_agence)}</dd></div><div><dt>Marque</dt><dd>${esc(d.marque)}</dd></div><div><dt>Date</dt><dd>${dateR}</dd></div><div><dt>Période couverte</dt><dd>${periode}</dd></div></dl>
         <div class="c-conf">CONFIDENTIEL</div></div>
       <div class="c-client">${logoClient}</div>
     </section>
-
-    <section class="page">${entete('Synthèse de la période')}
-      <div class="r-corps">
-        <p class="r-periode"><b>Période couverte :</b> ${periode}</p>
-        <div class="kpis"><div><b class="num">${nb(tot)}</b><span>publications remontées</span></div><div><b class="num">${pct(d.negatives||0,tot)}</b><span>de publications négatives</span></div><div><b class="num">${nb((d.jaime||0)+(d.com||0)+(d.part||0))}</b><span>interactions</span></div><div><b class="num">${(d.attention||[]).length}</b><span>points d’attention</span></div></div>
-        <h3>Ce qui s’est passé</h3><ul>${(syn.faits||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-        <h3>Points d’attention</h3><ul>${(syn.attention||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-      </div>${pied(2)}</section>
-
-    <section class="page separation"><div class="motif" aria-hidden="true"></div><div class="sep-client">${logoClient}</div><p>${esc(d.marque)}</p></section>
-
-    <section class="page">${entete('Statistiques')}
-      <div class="r-corps">
-        <div class="deux"><div><h3>Thématiques</h3>${barres(principaux,'n','theme')}</div>
-          <div><h3>Tonalité</h3><div class="camembert" style="background:conic-gradient(var(--r-neg) 0 ${a1}deg,var(--r-neu) ${a1}deg ${a2}deg,var(--r-pos) ${a2}deg 360deg)"></div>
-            <ul class="legende"><li><i style="background:var(--r-neg)"></i>Négatif ${nNeg} (${pct(nNeg,tot)})</li><li><i style="background:var(--r-neu)"></i>Neutre ${nNeu} (${pct(nNeu,tot)})</li><li><i style="background:var(--r-pos)"></i>Positif ${nPos} (${pct(nPos,tot)})</li></ul></div></div>
-        <h3>Résumé</h3><p>${tot?`Sur la période, ${nb(tot)} publications ont été remontées, dont ${pct(d.negatives||0,tot)} négatives. ${principaux[0]?`La thématique « ${esc(principaux[0].theme)} » est la plus représentée (${principaux[0].n}).`:''}`:'Aucune publication sur la période.'}</p>
-        ${autres.length?`<h3>Autres thèmes</h3><p class="small">${autres.map(x=>`${esc(x.theme)} (${x.n})`).join(' · ')}</p>`:''}
-        <div class="kpis"><div><b class="num">${nb(tot)}</b><span>publications</span></div><div><b class="num">${nb(d.jaime)}</b><span>j'aime</span></div><div><b class="num">${nb(d.com)}</b><span>commentaires</span></div><div><b class="num">${nb(d.part)}</b><span>partages</span></div></div>
-        <p class="note">Base : publications publiques remontées sur la marque pendant la période, hors canaux officiels et concurrents.</p>
-      </div>${pied(4)}</section>
-
-    <section class="page">${entete('Statistiques (suite)')}
-      <div class="r-corps">
-        <h3>Localisation</h3>${barres((d.lieux||[]).slice(0,8),'n','lieu')}
-        <h3>Interactions par thématique</h3>${barres(themes.slice(0,8).map(x=>({theme:x.theme,i:x.interactions||0})),'i','theme')}
-        <h3>Points d’attention</h3>${(d.attention||[]).length?`<table class="r-tab"><thead><tr><th>Publication</th><th>Réseau</th><th class="n">Commentaires</th><th>Statut</th></tr></thead><tbody>${d.attention.slice(0,12).map(x=>`<tr><td><b>${esc(x.auteur||'')}</b><br>${esc(x.titre||'')}</td><td>${esc(x.plateforme)}</td><td class="n num">${nb(x.com)}</td><td>${esc(x.statut||'En cours')}</td></tr>`).join('')}</tbody></table>`:'<p class="vide-r">Aucun point d’attention en cours.</p>'}
-      </div>${pied(5)}</section>
-
-    <section class="page flux">${entete('Publications observées')}
-      <div class="r-corps">${(d.publications||[]).length?`<div class="r-pubs">${d.publications.map(cartePub).join('')}</div>`:'<p class="vide-r">Aucune publication sur la période.</p>'}</div></section>
-
+    <section class="page separation"><div class="motif" aria-hidden="true"></div><div class="sep-client">${logoClient}</div><p>${esc(d.marque)}</p>
+      <ol class="sommaire"><li><span>Synthèse</span></li><li><span>01 – Tableau de bord</span></li><li><span>02 – Points d’attention</span></li><li><span>03 – Publications remontées</span></li></ol></section>
+    ${interieures.map((p,i)=>`<section class="page ${p.cls}">${entete(p.section)}<div class="r-corps">${p.corps}</div>${pied(i+3)}</section>`).join('')}
     <section class="page dos"><div class="motif" aria-hidden="true"></div><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><p>${esc(IMAGE.nom_plateforme)}</p></section>
   </div>`;
   el.hidden=false;document.body.classList.add('rapport-ouvert');el.scrollTop=0;
