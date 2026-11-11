@@ -163,16 +163,18 @@ section.vue{display:grid;gap:16px}
 @media (max-width:1100px){.grille-pubs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.grille-pubs{grid-template-columns:1fr}}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
-.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:600px}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:530px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
 .pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 60%;height:60%;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 .pub-image img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;flex:0 0 100%}
-.pub-corps{padding:10px 13px 12px;display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:hidden}
+.pub-corps{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden;font-size:.84rem}
+.pub-corps .pub-auteur{font-size:.92rem}
+.pub-corps .pub-actions .btn{min-height:28px;padding:3px 8px}
 .pub-corps .puces{flex-wrap:nowrap;overflow:hidden;flex:0 0 auto}
 .pub-corps .puce{white-space:nowrap}
 .pub-auteur{font-weight:700;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
-.pub-texte{overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;height:4.35em;overflow:hidden;flex:0 0 auto}
-.pub-meta{font-size:.78rem;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;height:2.7em;overflow:hidden;flex:0 0 auto}
+.pub-texte{overflow-wrap:anywhere;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;max-height:4.35em;overflow:hidden;flex:0 0 auto}
+.pub-meta{font-size:.78rem;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;max-height:1.4em;overflow:hidden;flex:0 0 auto}
 .pub-stats{display:flex;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;gap:10px;font-size:.8rem;color:var(--muted);flex:0 0 auto}
 .pub-stats b{color:var(--fg)}
 .pub-actions{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;margin-top:auto}
@@ -818,7 +820,7 @@ function carte(p,avecMarque=true){
       ${p.categorie==='attention'?`<div class="pub-motifs" title="${esc([p.statut_suivi,...(p.motifs||[])].filter(Boolean).join(' · '))}">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
       <div class="pub-auteur" title="${esc(p.auteur||'')}">${esc(p.auteur||'Auteur non disponible')}</div>
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
-      <div class="pub-meta">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · publiée le ${date(p.publiee_le)} · ${quand}</div>
+      <div class="pub-meta" title="Publiée le ${esc(date(p.publiee_le))} · ${esc(quand)}">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · ${esc(date(p.publiee_le).replace(' UTC',''))}</div>
       <div class="pub-stats num"><span><b>${nb(p.jaime)}</b> j'aime</span><span><b>${nb(p.com)}</b> comm.</span><span><b>${nb(p.part)}</b> partages</span>${p.vues?`<span><b>${nb(p.vues)}</b> vues</span>`:''}</div>
       <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener" title="Voir la publication">Voir</a>`:''}${act}</div>
     </div>
