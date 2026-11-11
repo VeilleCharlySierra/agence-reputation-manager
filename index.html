@@ -164,6 +164,7 @@ section.vue{display:grid;gap:16px}
 @media (max-width:640px){.grille-pubs{grid-template-columns:1fr}}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
 .pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:530px}
+.pub.avec-releves{height:560px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
 .pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 60%;height:60%;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 .pub-image img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;flex:0 0 100%}
@@ -177,6 +178,10 @@ section.vue{display:grid;gap:16px}
 .pub-meta{font-size:.78rem;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;max-height:1.4em;overflow:hidden;flex:0 0 auto}
 .pub-stats{display:flex;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;gap:10px;font-size:.8rem;color:var(--muted);flex:0 0 auto}
 .pub-stats b{color:var(--fg)}
+.pub-releves{font-size:.78rem;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
+dialog.fenetre{max-width:min(760px,94vw);width:100%;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:16px}
+dialog.fenetre::backdrop{background:rgba(0,0,0,.6)}
+dialog.fenetre .hausse{color:var(--pos,#3DA56A)}dialog.fenetre .baisse{color:var(--muted)}
 .pub-actions{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;margin-top:auto}
 .pub-actions .btn{white-space:nowrap;padding:4px 8px}
 .pub-actions a{white-space:nowrap}
@@ -798,6 +803,7 @@ async function vueListe(k,cible){
     $('#f-compte').textContent=`${nom} · ${l.length} publication${l.length>1?'s':''}${bornes(ep)?' · '+libellePeriode(ep):''}.${v.note?' '+v.note:''}`;
     $('#liste').innerHTML=l.length?l.map(p=>carte(p,plusieurs)).join(''):`<div class="vide">${donnees.length?'Aucune publication ne correspond aux filtres.':v.vide}</div>`;
     $('#liste').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>agir(b.dataset.id,b.dataset.a));
+    $('#liste').querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>ouvrirReleves(donnees.find(p=>String(p.id)===b.dataset.r)));
   };
   const charger=async()=>{
     let q=filtreClient(v.q(SB.from('publications').select('*'))).is('archive_le',null).limit(500);
@@ -806,6 +812,9 @@ async function vueListe(k,cible){
     const {data,error}=await q;
     if(error){$('#liste').innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';return}
     donnees=data||[];
+    // relevés horaires des points d'attention et des publications suivies (évolution des chiffres)
+    if(k==='attention'||k==='suivies'){const ids=donnees.map(p=>p.id);if(ids.length){const {data:rl}=await SB.from('releves').select('publication_id,releve_le,jaime,com,part,vues').in('publication_id',ids).order('releve_le',{ascending:true}).limit(5000);
+      for(const id of ids)RELEVES[id]=[];for(const r of rl||[])(RELEVES[r.publication_id]||=[]).push(r)}}
     options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
     options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
     afficher();
@@ -820,6 +829,26 @@ async function vueListe(k,cible){
 const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 // début du texte : 20 mots au plus, la suite se lit sur la publication
 const extrait=(t,n=20)=>{const m=String(t).replace(/\s+/g,' ').trim().split(' ');return m.length>n?m.slice(0,n).join(' ')+'…':m.join(' ')};
+// relevés d'une publication suivie ou en point d'attention
+const RELEVES={};
+const heureUTC=v=>new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).replace(' ',' à ').replace(':','h');
+const ecart=(a,b)=>a==null||b==null?'':(b-a>0?'+':b-a<0?'−':'±')+nb(Math.abs(b-a));
+function resumeReleves(p){
+  const l=RELEVES[p.id];if(!l)return '';
+  if(!l.length)return '<div class="pub-releves muted">Aucun relevé pour l’instant</div>';
+  const a=l[0],z=l[l.length-1];
+  return `<div class="pub-releves" title="Relevés horodatés en UTC">${l.length} relevé${l.length>1?'s':''} · dernier le ${heureUTC(z.releve_le)}${l.length>1?` · comm. ${ecart(a.com,z.com)} · j'aime ${ecart(a.jaime,z.jaime)}`:''}</div>`;
+}
+function ouvrirReleves(p){
+  if(!p)return;const l=RELEVES[p.id]||[];
+  const d=document.createElement('dialog');d.className='fenetre';
+  const ligne=(r,i)=>{const av=l[i-1];const c=(k)=>`<td class="n num">${nb(r[k])}${av&&r[k]!=null&&av[k]!=null&&r[k]!==av[k]?` <small class="${r[k]>av[k]?'hausse':'baisse'}">${ecart(av[k],r[k])}</small>`:''}</td>`;
+    return `<tr><td class="num">${heureUTC(r.releve_le)}</td>${c('jaime')}${c('com')}${c('part')}${c('vues')}</tr>`};
+  d.innerHTML=`<div class="entete-vue"><h3 style="margin:0">Relevés · ${esc(p.auteur||'Publication')}</h3><button class="btn sec mini" type="button" data-f>Fermer</button></div>
+    <p class="muted small">${esc(p.statut_suivi||(p.categorie==='suivie'?'Publication suivie : relevée à chaque passage':''))} · heures UTC. Le chiffre en petit indique l’évolution depuis le relevé précédent.</p>
+    ${l.length?`<div class="defile"><table class="tab"><thead><tr><th>Relevé</th><th class="n">J'aime</th><th class="n">Commentaires</th><th class="n">Partages</th><th class="n">Vues</th></tr></thead><tbody>${[...l].map(ligne).reverse().join('')}</tbody></table></div>`:'<p class="muted">Aucun relevé pour l’instant : le premier est fait au prochain relevé horaire.</p>'}`;
+  document.body.appendChild(d);d.querySelector('[data-f]').onclick=()=>d.close();d.onclose=()=>d.remove();d.addEventListener('click',e=>{if(e.target===d)d.close()});d.showModal();
+}
 function carte(p,avecMarque=true){
   const lien=lienSur(p.lien);
   const b=(a,l)=>`<button class="btn sec mini" data-a="${a}" data-id="${p.id}">${l}</button>`;
@@ -829,7 +858,7 @@ function carte(p,avecMarque=true){
     p.categorie==='attention'?(p.epingle?b('desepingler','Désépingler'):b('epingler','Épingler'))+b('retirer_attention','Retirer'):''
   ].join(''):'';
   const quand=p.categorie==='publication'?'remontée le '+date(p.remontee_le):'dernier relevé le '+date(p.dernier_releve_le||p.remontee_le);
-  return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
+  return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''} ${RELEVES[p.id]?'avec-releves':''}">
     <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
       <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.origine==='humaine'?'<span class="puce">Remontée de l’équipe</span>':''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
@@ -838,7 +867,8 @@ function carte(p,avecMarque=true){
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
       <div class="pub-meta" title="Publiée le ${esc(date(p.publiee_le))} · ${esc(quand)}">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · ${esc(date(p.publiee_le).replace(' UTC',''))}</div>
       <div class="pub-stats num"><span><b>${nb(p.jaime)}</b> j'aime</span><span><b>${nb(p.com)}</b> comm.</span><span><b>${nb(p.part)}</b> partages</span>${p.vues?`<span><b>${nb(p.vues)}</b> vues</span>`:''}</div>
-      <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener" title="Voir la publication">Voir</a>`:''}${act}</div>
+      ${resumeReleves(p)}
+      <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener" title="Voir la publication">Voir</a>`:''}${RELEVES[p.id]?`<button class="btn sec mini" data-r="${p.id}">Relevés</button>`:''}${act}</div>
     </div>
   </article>`;
 }
