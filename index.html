@@ -291,6 +291,8 @@ label.fichier{display:inline-block;cursor:pointer;color:var(--fg)}
 .ligne-mot select{font-weight:700;text-align:center}
 .ligne-compte{grid-template-columns:130px 1fr auto}
 .ligne-rss{grid-template-columns:200px 1fr auto}
+.tri{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:6px}.tri label{display:inline-flex;gap:4px;align-items:center}
+.sous-ligne td{border-top:0;padding-top:2px}
 .cle-remontees{font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;user-select:all;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
 .ligne-hater{grid-template-columns:130px 1fr 1.4fr auto}
 .ajouter{justify-self:start}
@@ -1211,19 +1213,30 @@ async function admCriteres(){
 // ---- Remontées de l'équipe : messages du groupe WhatsApp lus par le script de l'ordinateur de veille ----
 async function admRemontees(){
   const z=$('#admin-corps');
-  const [{data:etat},{data:msgs}]=await Promise.all([SB.rpc('etat_remontees'),SB.from('remontees_equipe').select('*').order('recu_le',{ascending:false}).limit(100)]);
-  const e=etat||{};
+  await chargerReferentiel();
+  const [{data:etat},{data:msgs}]=await Promise.all([SB.rpc('etat_remontees'),SB.rpc('remontees_detail',{p_limite:100})]);
+  const e=etat||{},liste=msgs||[];
+  const marquesActives=S.marques.filter(m=>S.clients.find(c=>c.id===m.client_id&&c.actif));
+  const aTrier=liste.flatMap(m=>m.liens).filter(l=>l.collecte_id&&l.complete&&!l.marques.length).length;
+  const etatLien=l=>!l.collecte_id?'<span class="muted">non retenu</span>'
+    :l.marques.length?l.marques.map(m=>`<span class="puce acc">${esc(m.nom)}</span>`).join(' ')
+    :l.complete?'<span class="puce Négatif">À trier</span>':'<span class="puce">Lecture au prochain relevé</span>';
+  const tri=l=>l.collecte_id&&l.complete?`<div class="tri" data-c="${l.collecte_id}">${marquesActives.map(m=>`<label class="small"><input type="checkbox" value="${m.id}" ${l.marques.some(x=>x.id===m.id)?'checked':''}> ${esc(m.nom)}</label>`).join(' ')}<button type="button" class="btn sec mini attribuer">Attribuer</button></div>`:'';
   z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Remontées de l’équipe</h3><span class="puce">${e.cle?(e.dernier?'Dernière réception '+date(e.dernier):'En attente du premier message'):'Script non relié'}</span></div>
-      <p class="muted small">Le groupe WhatsApp de l’équipe est lu en lecture seule par un script installé dans le navigateur de l’ordinateur de veille : rien n’est jamais écrit dans le groupe. Chaque lien Facebook, TikTok ou X partagé devient une remontée humaine, complétée au relevé suivant puis analysée. Elle est rattachée aux marques citées dans le message, à défaut à toutes.</p>
-      <div class="row"><span class="small"><b class="num">${nb(e.jour||0)}</b> message(s) reçu(s) en 24 h</span><button class="btn sec mini" id="nouvelle-cle" type="button">${e.cle?'Remplacer la clé du script':'Créer la clé du script'}</button></div>
+      <p class="muted small">Le groupe WhatsApp de l’équipe est lu en lecture seule par un script installé dans le navigateur de l’ordinateur de veille : rien n’est jamais écrit dans le groupe. Le groupe remonte plusieurs marques : chaque lien Facebook, TikTok ou X est attribué aux marques que le message nomme, puis, une fois la publication lue, aux marques dont elle remplit les mots-clés ou dont elle vient de la page officielle. Un lien qui ne correspond à aucune marque reste « à trier » ici et n’apparaît dans aucune marque tant qu’il n’est pas attribué.</p>
+      <div class="row"><span class="small"><b class="num">${nb(e.jour||0)}</b> message(s) reçu(s) en 24 h · <b class="num">${nb(aTrier)}</b> lien(s) à trier</span><button class="btn sec mini" id="nouvelle-cle" type="button">${e.cle?'Remplacer la clé du script':'Créer la clé du script'}</button></div>
       <div id="zone-cle"></div>
       <details class="aide-requete"><summary>Installer le script sur l’ordinateur de veille</summary><ol class="small">
         <li>Dans Chrome ou Edge, installer l’extension Tampermonkey.</li>
         <li>Ouvrir le fichier <b>remontees-equipe.user.js</b> fourni et l’installer dans Tampermonkey.</li>
         <li>Ouvrir WhatsApp Web, puis le groupe suivi. Dans le menu Tampermonkey, choisir « Saisir la clé des remontées » et coller la clé créée ici.</li>
-        <li>Laisser l’onglet WhatsApp Web ouvert : les nouveaux messages sont envoyés toutes les minutes.</li></ol></details></div>
+        <li>Laisser l’onglet WhatsApp Web ouvert sur le groupe : les nouveaux messages sont envoyés toutes les minutes.</li></ol></details></div>
     <div class="bloc"><div class="entete-vue"><h3>Derniers messages reçus</h3><span class="muted small">100 au plus</span></div>
-      ${(msgs||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Envoyé</th><th>Par</th><th>Message</th><th class="n">Liens</th></tr></thead><tbody>${msgs.map(m=>`<tr><td class="num small" style="white-space:nowrap">${date(m.envoye_le||m.recu_le)}</td><td class="small">${esc(m.auteur||'')}</td><td class="small">${esc(extrait(m.texte||'',40))}${(m.liens||[]).filter(lienSur).map(u=>`<div><a href="${esc(lienSur(u))}" target="_blank" rel="noopener">${esc(u.slice(0,70))}</a></div>`).join('')}</td><td class="n num">${(m.liens||[]).length}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun message reçu pour l’instant.</p>'}</div>`;
+      ${liste.length?`<div class="defile"><table class="tab"><thead><tr><th>Envoyé</th><th>Par</th><th>Message</th><th>Marques</th></tr></thead><tbody>${liste.map(m=>`<tr><td class="num small" style="white-space:nowrap">${date(m.envoye_le||m.recu_le)}</td><td class="small">${esc(m.auteur||'')}</td><td class="small">${esc(extrait(m.texte||'',40))}</td><td class="small">${m.liens.length?'':'<span class="muted">sans lien</span>'}</td></tr>${m.liens.map(l=>`<tr class="sous-ligne"><td></td><td></td><td class="small">${lienSur(l.lien)?`<a href="${esc(lienSur(l.lien))}" target="_blank" rel="noopener">${esc(l.lien.slice(0,80))}</a>`:esc(l.lien)}</td><td class="small">${etatLien(l)}${tri(l)}</td></tr>`).join('')}`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun message reçu pour l’instant.</p>'}</div>`;
+  z.querySelectorAll('.attribuer').forEach(b=>b.onclick=async()=>{const t=b.closest('.tri');
+    const ids=[...t.querySelectorAll('input:checked')].map(i=>Number(i.value));
+    b.disabled=true;const {error}=await SB.rpc('attribuer_remontee',{p_collecte:Number(t.dataset.c),p_marques:ids});b.disabled=false;
+    if(error)return toast(error.message,true);toast(ids.length?'Remontée attribuée : elle passe à l’analyse':'Remontée retirée des marques');admRemontees()});
   $('#nouvelle-cle').onclick=()=>{
     const go=async()=>{const {data,error}=await SB.rpc('creer_cle_remontees');if(error)return toast(error.message,true);
       $('#zone-cle').innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Clé du script, affichée une seule fois. Collez-la dans le menu du script sur l’ordinateur de veille.</div><div class="row"><div class="cle-remontees">${esc(data)}</div><button class="btn sec" type="button" id="copier-cle">Copier</button></div></div>`;
