@@ -155,6 +155,9 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 .legende-app li{display:grid;grid-template-columns:14px 80px 70px auto;gap:10px;align-items:center}
 .legende-app i{width:14px;height:14px;border-radius:3px}
 .legende-app b{font:700 1.2rem var(--display);text-align:right}
+/* Contrôle qualité */
+ul.pb{margin:6px 0 0;padding-left:16px;color:var(--fg)}
+.alerte-ctl{border-color:color-mix(in srgb,var(--neg) 60%,var(--line))}
 /* Récapitulatif */
 .marque-cell{display:flex;align-items:center;gap:8px}
 .marque-cell img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:5px;padding:2px}
@@ -686,7 +689,8 @@ async function admFormMarque(clientId){
   const blocConc=k=>`<div class="concurrent" data-id="${k?.id||''}"><div class="row"><label>Nom du concurrent<input type="text" data-c="nom" value="${esc(k?.nom||'')}" maxlength="80"></label><button type="button" class="btn danger mini retirer-conc">Retirer ce concurrent</button></div>
       <div class="sous-titre">Mots-clés du concurrent</div>${zoneLignes('mot',(k?.mots_cles||[]).map(v=>({v})),'Ajouter un mot-clé')}
       <div class="sous-titre">Comptes du concurrent</div>${zoneLignes('compte',k?.comptes||[],'Ajouter un compte')}</div>`;
-  z.innerHTML=`<form class="fiche" id="f-marque" novalidate>
+  const ctl=f.controle||{};
+  z.innerHTML=`${c&&!f.point_zero_le&&ctl.etat==='à corriger'?`<div class="bloc alerte-ctl"><h3>Contrôle qualité : à corriger avant le premier tour</h3><ul class="pb">${(ctl.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="small muted" style="margin:0">Corrigez puis enregistrez : le contrôle et le premier tour sont relancés aussitôt.</p></div>`:''}<form class="fiche" id="f-marque" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">${c?esc(c.nom):'Nouvelle marque'}</h3>${c?'<button class="btn sec mini" id="retour" type="button">Toutes les marques</button>':quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
       <div class="identite">
         <div class="logo-zone"><div class="logo-apercu" id="logo-apercu">${logo?`<img src="${esc(logo)}" alt="Logo de la marque">`:'<span>Logo</span>'}</div>
@@ -773,19 +777,28 @@ async function admFormMarque(clientId){
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     $('#b-enregistrer').disabled=false;
     if(error)return toast(error.code==='23505'?'Une marque porte déjà ce nom.':error.message,true);
-    S.modifie=false;toast(c?'Marque enregistrée':'Marque créée : le premier tour de veille sera lancé dans les 15 minutes');
+    S.modifie=false;toast(c?'Marque enregistrée':'Marque créée : contrôle qualité puis premier tour de veille, le tout en moins de 5 minutes');
     await chargerReferentiel();S.admin='edition';S.adminMarque=Number(data);vueAdmin();
   };
 }
 
 // ---- Marques suivies ----
+// État du contrôle qualité et du premier tour de veille d'une marque
+function etatPremierTour(f){
+  if(!f)return '—';
+  if(f.point_zero_le)return 'Fait le '+date(f.point_zero_le);
+  const c=f.controle||{};
+  if(c.etat==='à corriger')return `<span class="puce Négatif">À corriger</span><ul class="pb">${(c.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+  if(c.etat==='en attente')return `<span class="puce">En attente</span><div class="muted">${esc((c.problemes||[])[0]||'')}</div>`;
+  return '<span class="puce">Contrôle qualité en cours</span>';
+}
 async function admMarques(){
   await chargerReferentiel();
   const [{data:quota},{data:us},{data:uc}]=await Promise.all([SB.rpc('quota_marques'),SB.from('utilisateurs').select('email,role,client_id'),SB.from('utilisateur_clients').select('*')]);
   const nbUtil=id=>(us||[]).filter(u=>u.role==='user_client'&&u.client_id===id).length+(uc||[]).filter(x=>x.client_id===id).length;
   const z=$('#admin-corps');
   z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Marques suivies</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota}</span>`:''}</div>
-    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>Premier tour de veille</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td class="small">${f?.point_zero_le?'Fait le '+date(f.point_zero_le):'<span class="puce">Dans les 15 minutes</span>'}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
+    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>Premier tour de veille</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td class="small">${etatPremierTour(f)}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn mini" data-m="${c.id}">Modifier</button> <button class="btn sec mini" data-s="${c.id}">${c.actif?'Suspendre':'Reprendre'}</button> <button class="btn danger mini" data-x="${c.id}">Supprimer</button></td></tr>`}).join('')}</tbody></table></div>`
       :'<p class="muted small">Aucune marque suivie. Créez la première dans « Création de marque ».</p>'}</div>`;
   z.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.admin='edition';S.adminMarque=Number(b.dataset.m);vueAdmin()});
