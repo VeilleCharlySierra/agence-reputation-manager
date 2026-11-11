@@ -33,7 +33,7 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--text)}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.wrap{max-width:78rem;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:none;margin-inline:0;padding-left:max(clamp(16px,2.2vw,36px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,2.2vw,36px),env(safe-area-inset-right,0px))}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .muted{color:var(--muted)}
 .small{font-size:.82rem}
@@ -195,7 +195,7 @@ ul.pb{margin:6px 0 0;padding-left:16px;color:var(--fg)}
 /* Récapitulatif */
 .marque-cell{display:flex;align-items:center;gap:8px}
 .marque-cell img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:5px;padding:2px}
-table.tab td.n,table.tab th.n{text-align:right}
+table td.n,table th.n{text-align:right}
 .hausse{color:var(--warn)} .baisse{color:var(--pos)}
 
 /* Fiche marque : lignes de saisie */
