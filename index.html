@@ -148,6 +148,13 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 @media (max-width:720px){.admin-grille{grid-template-columns:1fr}.admin-menu{position:static;display:flex;flex-wrap:wrap}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+/* Camembert de tonalité */
+.camembert-vue{display:flex;flex-wrap:wrap;gap:20px 36px;align-items:center}
+.camembert-app{width:180px;aspect-ratio:1;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 4px var(--panel2)}
+.legende-app{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.legende-app li{display:grid;grid-template-columns:14px 80px 70px auto;gap:10px;align-items:center}
+.legende-app i{width:14px;height:14px;border-radius:3px}
+.legende-app b{font:700 1.2rem var(--display);text-align:right}
 /* Récapitulatif */
 .marque-cell{display:flex;align-items:center;gap:8px}
 .marque-cell img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:5px;padding:2px}
@@ -453,6 +460,15 @@ const interactions=p=>(p.jaime||0)+(p.com||0)+(p.part||0);
 const pct=(a,b)=>b?Math.round(a*100/b)+' %':'—';
 
 // ===== Tableau de bord =====
+// Camembert de la tonalité : pourcentages de positif, neutre et négatif
+function camembert(pubs){
+  const n={Positif:0,Neutre:0,'Négatif':0};pubs.forEach(p=>{if(p.sentiment in n)n[p.sentiment]++;else n.Neutre++});
+  const t=pubs.length;if(!t)return '<p class="muted small">Aucune publication sur la période.</p>';
+  const P=k=>Math.round(n[k]*1000/t)/10,c={Positif:'var(--pos)',Neutre:'var(--neu)','Négatif':'var(--neg)'};
+  let a=0;const parts=['Positif','Neutre','Négatif'].map(k=>{const d=n[k]*360/t,seg=`${c[k]} ${a}deg ${a+d}deg`;a+=d;return seg});
+  return `<div class="camembert-vue"><div class="camembert-app" role="img" aria-label="Positif ${P('Positif')} %, neutre ${P('Neutre')} %, négatif ${P('Négatif')} %" style="background:conic-gradient(${parts.join(',')})"></div>
+    <ul class="legende-app">${['Positif','Neutre','Négatif'].map(k=>`<li><i style="background:${c[k]}"></i><span>${k}</span><b class="num">${P(k).toLocaleString('fr-FR')} %</b><span class="muted small num">${n[k]} publication${n[k]>1?'s':''}</span></li>`).join('')}</ul></div>`;
+}
 async function vueTableau(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const depuis=new Date(Date.now()-S.periode*36e5).toISOString();
@@ -475,6 +491,7 @@ async function vueTableau(){
       <div class="chiffre ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
       <div class="chiffre"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
     </div>
+    <div class="bloc"><h3>Tonalité des publications</h3>${camembert(pubs)}</div>
     ${ms.length?`<div class="bloc"><h3>Par marque</h3><div class="defile"><table class="par-marque"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th></tr></thead><tbody>${lignes}</tbody></table></div></div>`
       :`<div class="vide">Aucune marque suivie pour l'instant.${estAdmin()?'<br>Créez une marque dans <a href="#" id="va-admin">Administration › Création de marque</a>.':''}</div>`}
     <div class="bloc"><h3>Points d'attention</h3>${atts.length?'<div class="liste">'+atts.slice(0,5).map(a=>`<div class="small"><span class="puce acc">${esc(nomMarque(a.marque_id))}</span> ${a.epingle?'<span class="puce">Épinglé</span> ':''}<b>${esc(a.auteur||'Auteur inconnu')}</b> · ${esc(a.plateforme)} · ${esc(a.titre||(a.texte||'').slice(0,120))} · <span class="num">${nb(a.com)}</span> commentaires</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
