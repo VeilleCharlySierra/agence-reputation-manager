@@ -126,19 +126,22 @@ section.vue{display:grid;gap:16px}
 .segments button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .grille-pubs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;align-items:start}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
-.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:540px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
-.pub-image{display:block;height:128px;background:var(--panel2);border-bottom:1px solid var(--line)}
-.pub-image img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
-.pub-corps{padding:12px 13px 13px;display:grid;gap:8px}
-.pub-auteur{font-weight:700;font-size:.98rem}
-.pub-texte{overflow-wrap:anywhere;line-height:1.5}
-.pub-meta{font-size:.8rem;color:var(--muted)}
-.pub-stats{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.82rem;color:var(--muted)}
+.pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 128px;height:128px;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
+.pub-image img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;flex:0 0 100%}
+.pub-corps{padding:12px 13px 13px;display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.pub-corps .puces{flex-wrap:nowrap;overflow:hidden;flex:0 0 auto}
+.pub-corps .puce{white-space:nowrap}
+.pub-auteur{font-weight:700;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
+.pub-texte{overflow-wrap:anywhere;line-height:1.5;height:7.5em;overflow:hidden;flex:0 0 auto}
+.pub-meta{font-size:.8rem;color:var(--muted);line-height:1.4;height:4.2em;overflow:hidden;flex:0 0 auto}
+.pub-stats{display:flex;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;gap:10px;font-size:.8rem;color:var(--muted);flex:0 0 auto}
 .pub-stats b{color:var(--fg)}
-.pub-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pub-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto}
 .pub-actions a{font-weight:600;margin-right:4px}
-.pub-motifs{display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem}
+.pub-motifs{display:flex;flex-wrap:nowrap;overflow:hidden;gap:4px;font-size:.75rem;flex:0 0 auto}
+.pub-motifs span{white-space:nowrap}
 .pub-motifs span{background:var(--panel2);border-radius:10px;padding:1px 8px}
 .pub-motifs .statut{background:var(--accent);color:var(--on-accent);font-weight:600}
 .puce{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.75rem;font-weight:600;background:var(--panel2)}
@@ -621,6 +624,8 @@ async function vueListe(k){
   charger();
 }
 const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+// début du texte : 20 mots au plus, la suite se lit sur la publication
+const extrait=(t,n=20)=>{const m=String(t).replace(/\s+/g,' ').trim().split(' ');return m.length>n?m.slice(0,n).join(' ')+'…':m.join(' ')};
 function carte(p,avecMarque=true){
   const lien=lienSur(p.lien);
   const b=(a,l)=>`<button class="btn sec mini" data-a="${a}" data-id="${p.id}">${l}</button>`;
@@ -631,12 +636,12 @@ function carte(p,avecMarque=true){
   ].join(''):'';
   const quand=p.categorie==='publication'?'remontée le '+date(p.remontee_le):'dernier relevé le '+date(p.dernier_releve_le||p.remontee_le);
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
-    ${p.capture?`<a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}><img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication"></a>`:''}
+    <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
       <div class="puces">${avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
-      ${p.categorie==='attention'?`<div class="pub-motifs">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
-      <div class="pub-auteur">${esc(p.auteur||'Auteur non disponible')}</div>
-      ${p.texte||p.titre?`<div class="pub-texte">« ${esc(p.texte||p.titre)} »</div>`:''}
+      ${p.categorie==='attention'?`<div class="pub-motifs" title="${esc([p.statut_suivi,...(p.motifs||[])].filter(Boolean).join(' · '))}">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
+      <div class="pub-auteur" title="${esc(p.auteur||'')}">${esc(p.auteur||'Auteur non disponible')}</div>
+      <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
       <div class="pub-meta">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · publiée le ${date(p.publiee_le)} · ${quand}</div>
       <div class="pub-stats num"><span><b>${nb(p.jaime)}</b> j'aime</span><span><b>${nb(p.com)}</b> comm.</span><span><b>${nb(p.part)}</b> partages</span>${p.vues?`<span><b>${nb(p.vues)}</b> vues</span>`:''}</div>
       <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">Voir la publication</a>`:''}${act}</div>
