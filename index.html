@@ -462,8 +462,8 @@ const pct=(a,b)=>b?Math.round(a*100/b)+' %':'—';
 // ===== Tableau de bord =====
 // Camembert de la tonalité : pourcentages de positif, neutre et négatif
 function camembert(pubs){
-  const n={Positif:0,Neutre:0,'Négatif':0};pubs.forEach(p=>{if(p.sentiment in n)n[p.sentiment]++;else n.Neutre++});
-  const t=pubs.length;if(!t)return '<p class="muted small">Aucune publication sur la période.</p>';
+  const n={Positif:0,Neutre:0,'Négatif':0};pubs.forEach(p=>{if(p.sentiment in n)n[p.sentiment]++});
+  const t=n.Positif+n.Neutre+n['Négatif'];if(!t)return '<p class="muted small">Aucune publication analysée sur la période.</p>';
   const P=k=>Math.round(n[k]*1000/t)/10,c={Positif:'var(--pos)',Neutre:'var(--neu)','Négatif':'var(--neg)'};
   let a=0;const parts=['Positif','Neutre','Négatif'].map(k=>{const d=n[k]*360/t,seg=`${c[k]} ${a}deg ${a+d}deg`;a+=d;return seg});
   return `<div class="camembert-vue"><div class="camembert-app" role="img" aria-label="Positif ${P('Positif')} %, neutre ${P('Neutre')} %, négatif ${P('Négatif')} %" style="background:conic-gradient(${parts.join(',')})"></div>
@@ -537,7 +537,7 @@ function carte(p){
     p.categorie==='attention'?(p.epingle?`<button class="btn sec mini" data-a="desepingler" data-id="${p.id}">Désépingler</button>`:`<button class="btn sec mini" data-a="epingler" data-id="${p.id}">Épingler</button>`)+`<button class="btn sec mini" data-a="retirer_attention" data-id="${p.id}">Retirer des points d'attention</button>`:''
   ].join(''):'';
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
-    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}
+    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}
       <span><b>${esc(p.auteur||'Auteur inconnu')}</b> · ${esc(p.plateforme)}</span>
       <span>${p.origine==='humaine'?'Remontée humaine':'Remontée automatisée'}</span>
       ${p.theme?`<span>${esc(p.theme)}</span>`:''}${p.lieu?`<span>${esc(p.lieu)}</span>`:''}</div>
