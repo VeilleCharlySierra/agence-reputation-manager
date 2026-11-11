@@ -313,6 +313,14 @@ body.rapport-ouvert{overflow:hidden}
 .page.six .r-corps{min-height:0;overflow:hidden}
 .nuage{min-height:95mm!important;font-size:1.15rem}
 @media (max-width:640px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis.cinq{grid-template-columns:repeat(2,minmax(0,1fr))}.r-att-corps{grid-template-columns:1fr}.r-att-capture{width:100%}.page.six .r-pubs{grid-template-rows:none}.deux,.r-pubs{grid-template-columns:1fr}.c-bande dl{grid-template-columns:1fr}}
+/* Export PDF : pages A4 rendues hors écran, mise en page bureau quelle que soit la taille de l'écran */
+.r-doc.export{position:fixed;left:-10000px;top:0;width:210mm;display:block!important;padding:0!important;gap:0;pointer-events:none}
+.r-doc.export .page{width:210mm!important;height:297mm!important;min-height:297mm!important;box-shadow:none;margin:0}
+.r-doc.export .kpis{grid-template-columns:repeat(4,1fr)!important}.r-doc.export .kpis.cinq{grid-template-columns:repeat(5,1fr)!important}
+.r-doc.export .deux{grid-template-columns:1.4fr 1fr!important}.r-doc.export .r-pubs{grid-template-columns:1fr 1fr!important}
+.r-doc.export .page.six .r-pubs{grid-template-rows:repeat(3,minmax(0,1fr))!important}.r-doc.export .c-bande dl{grid-template-columns:1fr 1fr!important}
+.r-doc.export .r-att-corps{grid-template-columns:auto 1fr!important}.r-doc.export .r-att-capture{width:62mm!important}
+.r-doc.export .nuage span.fort{background:linear-gradient(transparent 62%,rgba(198,221,31,.7) 62%)}
 @media print{
   @page{size:A4;margin:0}
   html,body{background:#fff!important}
@@ -380,7 +388,6 @@ body.rapport-ouvert{overflow:hidden}
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
   <main class="wrap" id="contenu"></main>
 </div>
-<div id="rapport" class="rapport" hidden role="dialog" aria-label="Rapport"></div>
 <div class="toast" id="toast" hidden role="status"></div>
 
 <script>
@@ -928,10 +935,10 @@ async function vueRapports(){
       <div class="row"><label>Marque<select id="r-marque">${ms.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('')}</select></label>
       <label>Période<select id="r-periode"><option value="24">Dernières 24 heures</option><option value="48">Dernières 48 heures</option><option value="72">Dernières 72 heures</option><option value="perso">Dates choisies</option></select></label></div>
       <div class="row" id="r-dates" hidden><label>Du<input type="datetime-local" id="r-debut" value="${versLocal(new Date(maintenant-864e5))}"></label><label>Au<input type="datetime-local" id="r-fin" value="${versLocal(maintenant)}"></label></div>
-      <div class="row"><button class="btn" type="submit" id="r-btn" ${ms.length?'':'disabled'}>Générer le rapport</button></div></form>
+      <div class="row"><button class="btn" type="submit" id="r-btn" ${ms.length?'':'disabled'}>Générer et télécharger</button></div></form>
     <div class="bloc"><h3>Rapports disponibles</h3><p class="muted small" style="margin:0">Le rapport quotidien de chaque marque est produit chaque matin. Son envoi par e-mail aux utilisateurs de la marque et aux responsables de comptes de l’agence sera activé à la mise en service.</p>
       ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Type</th><th>Période couverte</th><th>Produit le</th><th>Envoi</th><th></th></tr></thead><tbody>
-      ${data.map(r=>`<tr><td><b>${esc(nomClient(r.client_id))}</b></td><td>${r.type==='quotidien'?'Quotidien':'À la demande'}</td><td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td class="small">${r.envoye_le?'Envoyé le '+jourHeure(r.envoye_le):r.type==='quotidien'?'Non envoyé (envoi désactivé)':'—'}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Ouvrir</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
+      ${data.map(r=>`<tr><td><b>${esc(nomClient(r.client_id))}</b></td><td>${r.type==='quotidien'?'Quotidien':'À la demande'}</td><td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td class="small">${r.envoye_le?'Envoyé le '+jourHeure(r.envoye_le):r.type==='quotidien'?'Non envoyé (envoi désactivé)':'—'}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
   $('#r-periode').onchange=e=>$('#r-dates').hidden=e.target.value!=='perso';
   $('#f-rapport').onsubmit=async e=>{e.preventDefault();
     let fin=new Date(),debut;
@@ -943,8 +950,8 @@ async function vueRapports(){
     const {data:id,error}=await SB.rpc('enregistrer_rapport_demande',{p_client:Number($('#r-marque').value),p_debut:debut.toISOString(),p_fin:fin.toISOString()});
     $('#r-btn').disabled=false;
     if(error)return toast(error.message,true);
-    await vueRapports();ouvrirRapport(id)};
-  c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>ouvrirRapport(Number(b.dataset.v)));
+    await vueRapports();telechargerRapport(id)};
+  c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>telechargerRapport(Number(b.dataset.v),b));
 }
 
 // Synthèse factuelle, utilisée quand le rapport n'a pas de synthèse rédigée (aucune interprétation, aucun qualificatif)
@@ -965,9 +972,8 @@ function syntheseAuto(d){
 }
 
 // ===== Rapport : organisation inspirée du rapport CIE, une seule marque, image de marque de la plateforme =====
-async function ouvrirRapport(id){
-  const {data:r,error}=await SB.from('rapports').select('*').eq('id',id).single();
-  if(error)return toast('Ouverture impossible : '+error.message,true);
+// Construit les pages A4 du rapport (HTML) ; le PDF est produit à partir de ces pages
+function pagesRapport(r){
   const d=r.contenu||{},syn=Object.assign(syntheseAuto(d),r.synthese||{});
   const nd=v=>v==null?'non disponible':nb(v);
   const tot=d.total||0,ton=d.tonalite||{};
@@ -982,10 +988,11 @@ async function ouvrirRapport(id){
   const barres=(l,cle,lib)=>{const max=Math.max(1,...l.map(x=>x[cle]));return l.length?`<div class="barres">${l.map(x=>`<div class="barre"><span class="lib">${esc(x[lib])}</span><span class="piste"><i style="width:${Math.max(2,x[cle]*100/max)}%"></i></span><b class="num">${nb(x[cle])}</b></div>`).join('')}</div>`:'<p class="vide-r">Aucune donnée sur la période.</p>'};
   const nNeg=ton['Négatif']||0,nNeu=ton['Neutre']||0,nPos=ton['Positif']||0,nT=nNeg+nNeu+nPos;
   const a1=nT?nPos*360/nT:0,a2=nT?a1+nNeu*360/nT:0;
-  const camemb=nT?`<div class="camembert" style="background:conic-gradient(var(--r-pos) 0 ${a1}deg,var(--r-neu) ${a1}deg ${a2}deg,var(--r-neg) ${a2}deg 360deg)"></div>
+  const arc=(a,b,c)=>{if(b-a<=0)return '';if(b-a>=359.99)return `<circle cx="50" cy="50" r="48" fill="${c}"/>`;const p=t=>[50+48*Math.sin(t*Math.PI/180),50-48*Math.cos(t*Math.PI/180)].map(v=>v.toFixed(2)).join(' ');return `<path d="M50 50 L${p(a)} A48 48 0 ${b-a>180?1:0} 1 ${p(b)} Z" fill="${c}"/>`};
+  const camemb=nT?`<svg class="camembert" viewBox="0 0 100 100" aria-hidden="true">${arc(0,a1,'#3DA56A')}${arc(a1,a2,'#A3A69C')}${arc(a2,360,'#E5484D')}</svg>
     <ul class="legende"><li><i style="background:var(--r-pos)"></i>Positif ${pct(nPos,nT)}</li><li><i style="background:var(--r-neu)"></i>Neutre ${pct(nNeu,nT)}</li><li><i style="background:var(--r-neg)"></i>Négatif ${pct(nNeg,nT)}</li></ul>`:'<p class="vide-r">Aucune publication analysée sur la période.</p>';
   const tr=d.tranches||[],maxT=Math.max(1,...tr.map(x=>x.n));
-  const heure=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',timeZone:'UTC'}).replace(':00','')+'h';
+  const heure=t=>String(new Date(t).getUTCHours()).padStart(2,'0')+'h';
   const tranches=tr.length?`<div class="colonnes">${tr.map(x=>`<div class="col"><b class="num">${x.n}</b><span class="barre-v" style="height:${Math.max(2,x.n*100/maxT)}%"></span><span class="lib">${heure(x.debut)}</span></div>`).join('')}</div>`:'<p class="vide-r">Non disponible.</p>';
   const mots=d.mots||[],maxM=Math.max(1,...mots.map(x=>x.n)),minM=Math.min(...mots.map(x=>x.n),maxM);
   const nuage=mots.length?`<div class="nuage">${[...mots].sort((x,y)=>x.mot.localeCompare(y.mot,'fr')).map(x=>{const k=maxM===minM?.5:(x.n-minM)/(maxM-minM);return `<span style="font-size:${(.85+k*2.1).toFixed(2)}em;font-weight:${k>.5?700:500}" class="${k>.6?'fort':''}">${esc(x.mot)}</span>`}).join(' ')}</div>`:'<p class="vide-r">Aucun mot sur la période.</p>';
@@ -1038,10 +1045,8 @@ async function ouvrirRapport(id){
   const total=interieures.length+3;
   const entete=s=>`<header class="r-entete"><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><div class="r-ent-titre"><h2>${esc(s)}</h2><span>${esc(d.marque)} · ${titre} du ${dateR}</span></div><div class="r-logo-client">${logoClient}</div></header>`;
   const pied=n=>`<footer class="r-pied"><span>Document confidentiel · usage interne</span><span>${n} / ${total}</span></footer>`;
-  const el=$('#rapport');
-  el.innerHTML=`<div class="r-outils"><button class="btn sec" type="button" id="r-fermer">Fermer</button><span class="small muted">${esc(d.marque)} · ${periode}</span><button class="btn" type="button" id="r-imprimer">Télécharger en PDF</button></div>
-  <div class="r-doc">
-    <section class="page couverture">
+  const nom=`${quotidien?'Rapport-quotidien':'Rapport'}-${d.marque}-${new Date(r.fin).toISOString().slice(0,10)}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9-]+/g,'-');
+  return {nom,html:`    <section class="page couverture">
       <div class="motif" aria-hidden="true"></div>
       <div class="c-haut"><img class="c-logo" src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><span class="c-mention">Document confidentiel · usage interne, diffusion restreinte</span></div>
       <div class="c-titre"><span class="c-sur">Plateforme de veille réseaux sociaux</span><h1>${titre}</h1></div>
@@ -1054,14 +1059,45 @@ async function ouvrirRapport(id){
       <ol class="sommaire"><li><span>Synthèse</span></li><li><span>01 – Tableau de bord</span></li><li><span>02 – Points d’attention</span></li><li><span>03 – Publications remontées</span></li></ol></section>
     ${interieures.map((p,i)=>`<section class="page ${p.cls}">${entete(p.section)}<div class="r-corps">${p.corps}</div>${pied(i+3)}</section>`).join('')}
     <section class="page dos"><div class="motif" aria-hidden="true"></div><img src="${esc(IMAGE.logo_url)}" alt="${esc(IMAGE.nom_agence)}"><p>${esc(IMAGE.nom_plateforme)}</p></section>
-  </div>`;
-  el.hidden=false;document.body.classList.add('rapport-ouvert');el.scrollTop=0;
-  document.title=`${titre} – ${d.marque} – ${new Date(r.fin).toISOString().slice(0,10)}`;
-  $('#r-fermer').onclick=fermerRapport;$('#r-imprimer').onclick=()=>window.print();
-  $('#r-fermer').focus();
+`};
 }
-function fermerRapport(){$('#rapport').hidden=true;$('#rapport').innerHTML='';document.body.classList.remove('rapport-ouvert');document.title=IMAGE.nom_plateforme}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#rapport').hidden)fermerRapport()});
+
+// Téléchargement direct du PDF : on reste sur la plateforme, rien ne s'ouvre
+const BIBLIOS=['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
+let biblios=null;
+function chargerBiblios(){
+  return biblios||(biblios=Promise.all(BIBLIOS.map(u=>new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src=u;sc.crossOrigin='anonymous';sc.onload=ok;sc.onerror=()=>{biblios=null;ko(new Error('module PDF indisponible'))};document.head.appendChild(sc)}))));
+}
+let exportEnCours=false;
+async function telechargerRapport(id,bouton){
+  if(exportEnCours)return toast('Un PDF est déjà en préparation.');
+  exportEnCours=true;if(bouton)bouton.disabled=true;
+  const zone=document.createElement('div');zone.className='r-doc export';zone.setAttribute('aria-hidden','true');
+  try{
+    toast('Préparation du PDF…');
+    const [{data:r,error}]=await Promise.all([SB.from('rapports').select('*').eq('id',id).single(),chargerBiblios()]);
+    if(error)throw new Error(error.message);
+    const {nom,html}=pagesRapport(r);
+    zone.innerHTML=html;document.body.appendChild(zone);
+    // captures des réseaux : passées par le relais d'images de la plateforme pour être lisibles dans le PDF
+    zone.querySelectorAll('img.r-capture,img.r-att-capture').forEach(im=>{try{const u=new URL(im.getAttribute('src'),location.href);if(u.origin!==location.origin&&!u.hostname.endsWith('.supabase.co'))im.src=SB_URL+'/functions/v1/image?u='+encodeURIComponent(u.href)}catch{}});
+    // images : une capture illisible est retirée (le texte de la publication reste affiché)
+    await Promise.all([...zone.querySelectorAll('img')].map(im=>new Promise(fin=>{
+      const t=new Image();t.crossOrigin='anonymous';t.onload=()=>fin();t.onerror=()=>{if(im.matches('.r-capture,.r-att-capture'))im.remove();else im.style.visibility='hidden';fin()};t.src=im.src;setTimeout(fin,8000)})));
+    if(document.fonts?.ready)await document.fonts.ready;
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+    const pages=[...zone.querySelectorAll('.page')];
+    for(let i=0;i<pages.length;i++){
+      toast(`Préparation du PDF… page ${i+1} sur ${pages.length}`);
+      const cv=await window.html2canvas(pages[i],{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+      if(i)pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,210,297,undefined,'FAST');
+    }
+    pdf.save(nom+'.pdf');
+    toast('PDF téléchargé');
+  }catch(e){toast('Téléchargement impossible : '+e.message,true)}
+  finally{zone.remove();exportEnCours=false;if(bouton)bouton.disabled=false}
+}
 
 SB.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){S.moi=null;afficher('connexion')}});
 demarrer();
