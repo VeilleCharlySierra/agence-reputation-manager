@@ -182,7 +182,13 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 .periode .perso[hidden]{display:none}
 .periode .perso label{display:grid;gap:2px;color:var(--muted)}
 .periode .perso input{width:auto}
-/* Tableau de bord */
+/* Tableau de bord : une seule grille de 30 colonnes, tous les bords alignés */
+.tdb-grille{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:16px;align-items:stretch}
+.tdb-grille>*{margin:0;min-width:0}
+.tdb-grille>.s6{grid-column:span 6}.tdb-grille>.s10{grid-column:span 10}.tdb-grille>.s20{grid-column:span 20}
+.tdb-grille>.bloc{align-content:start}
+@media (max-width:1100px){.tdb-grille>.s6{grid-column:span 10}.tdb-grille>.s10,.tdb-grille>.s20{grid-column:span 15}}
+@media (max-width:720px){.tdb-grille{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tdb-grille>.s6{grid-column:span 1}.tdb-grille>.s10,.tdb-grille>.s20{grid-column:1/-1}}
 .grille-tdb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
 .grille-tdb.deux-tiers{grid-template-columns:2fr 1fr}
 .grille-tdb.deux{grid-template-columns:1fr 1fr}
@@ -667,28 +673,22 @@ async function vueTableau(){
   const marque=S.clients.find(x=>String(x.id)===String(S.client));
   c.innerHTML=`<section class="vue tdb">
     <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(marque?.nom||'')} · ${libellePeriode()}</span>${periodeHTML()}</div></div>
-    <div class="chiffres">
-      <div class="chiffre"><b class="num">${nb(pubs.length)}</b><span>publications remontées</span></div>
-      <div class="chiffre"><b class="num">${pct(neg,pubs.length)}</b><span>de publications négatives</span></div>
-      <div class="chiffre"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
-      <div class="chiffre ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
-      <div class="chiffre"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
-    </div>
-    <div class="grille-tdb">
-      <div class="bloc"><h3>Sens des publications</h3>${camembert(pubs)}</div>
-      <div class="bloc"><h3>Interactions</h3>
+    <div class="tdb-grille">
+      <div class="chiffre s6"><b class="num">${nb(pubs.length)}</b><span>publications remontées</span></div>
+      <div class="chiffre s6"><b class="num">${pct(neg,pubs.length)}</b><span>de publications négatives</span></div>
+      <div class="chiffre s6"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
+      <div class="chiffre s6 ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
+      <div class="chiffre s6"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
+      <div class="bloc s10"><h3>Sens des publications</h3>${camembert(pubs)}</div>
+      <div class="bloc s10"><h3>Interactions</h3>
         <div class="mini-chiffres"><div><b class="num">${nb(jaime)}</b><span>j'aime</span></div><div><b class="num">${nb(com)}</b><span>commentaires</span></div><div><b class="num">${nb(part)}</b><span>partages</span></div><div><b class="num">${vues?nb(vues):'—'}</b><span>vues</span></div></div>
         <div class="sous-titre">Par réseau</div>${barresApp(reseaux.map(([k,v])=>[k,v[1],`${nb(v[1])} · ${v[0]} pub.`]))}</div>
-      <div class="bloc"><h3>Principales thématiques</h3>${barresApp(themes.slice(0,7).map(([k,v])=>[k,v[0]]),'Aucune publication analysée sur la période.')}</div>
-    </div>
-    <div class="grille-tdb deux-tiers">
-      <div class="bloc"><h3>Nuage de mots</h3>${nuageMots(pubs,[marque?.nom||''])}</div>
-      <div class="bloc"><h3>Localités citées</h3>${barresApp(lieux.slice(0,8).map(([k,v])=>[k,v[0]]),'Aucune localité citée sur la période.')}</div>
-    </div>
-    <div class="grille-tdb deux">
-      <div class="bloc"><div class="entete-vue"><h3>Points d'attention en cours</h3>${atts.length?'<button class="btn sec mini" id="va-att" type="button">Tout voir</button>':''}</div>
+      <div class="bloc s10"><h3>Principales thématiques</h3>${barresApp(themes.slice(0,7).map(([k,v])=>[k,v[0]]),'Aucune publication analysée sur la période.')}</div>
+      <div class="bloc s20"><h3>Nuage de mots</h3>${nuageMots(pubs,[marque?.nom||''])}</div>
+      <div class="bloc s10"><h3>Localités citées</h3>${barresApp(lieux.slice(0,8).map(([k,v])=>[k,v[0]]),'Aucune localité citée sur la période.')}</div>
+      <div class="bloc s20"><div class="entete-vue"><h3>Points d'attention en cours</h3>${atts.length?'<button class="btn sec mini" id="va-att" type="button">Tout voir</button>':''}</div>
         ${atts.length?'<div class="liste-tdb">'+atts.slice(0,5).map(a=>`<div class="ligne-tdb">${a.epingle?'<span class="puce acc">Épinglé</span>':''}<span class="puce">${esc(a.plateforme)}</span><b>${esc(a.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(a.titre||a.texte||'',12))}</span><span class="num small">${nb(a.com)} comm.</span>${a.statut_suivi?`<span class="puce statut">${esc(a.statut_suivi)}</span>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
-      <div class="bloc"><h3>Publications les plus engageantes</h3>
+      <div class="bloc s10"><h3>Publications les plus engageantes</h3>
         ${top.length?'<div class="liste-tdb">'+top.map(p=>`<div class="ligne-tdb"><span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}<b>${esc(p.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(p.titre||p.texte||'',12))}</span><span class="num small">${nb(interactions(p))} interactions</span>${lienSur(p.lien)?`<a class="small" href="${esc(lienSur(p.lien))}" target="_blank" rel="noopener">Voir</a>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucune publication sur la période.</p>'}</div>
     </div>
   </section>`;
