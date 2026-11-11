@@ -290,6 +290,8 @@ label.fichier{display:inline-block;cursor:pointer;color:var(--fg)}
 .ligne-mot{grid-template-columns:1fr 130px 1fr auto}
 .ligne-mot select{font-weight:700;text-align:center}
 .ligne-compte{grid-template-columns:130px 1fr auto}
+.ligne-rss{grid-template-columns:200px 1fr auto}
+.cle-remontees{font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;user-select:all;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
 .ligne-hater{grid-template-columns:130px 1fr 1.4fr auto}
 .ajouter{justify-self:start}
 .sous-titre{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:4px}
@@ -820,7 +822,7 @@ function carte(p,avecMarque=true){
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
     <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
-      <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
+      <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.origine==='humaine'?'<span class="puce">Remontée de l’équipe</span>':''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
       ${p.categorie==='attention'?`<div class="pub-motifs" title="${esc([p.statut_suivi,...(p.motifs||[])].filter(Boolean).join(' · '))}">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
       <div class="pub-auteur" title="${esc(p.auteur||'')}">${esc(p.auteur||'Auteur non disponible')}</div>
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
@@ -881,14 +883,14 @@ async function comparaison(z,conc){
 }
 
 // ===== Administration =====
-const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['journal','Journal d’activité']];
+const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['journal','Journal d’activité']];
 function vueAdmin(){
   if(!SECTIONS_ADMIN.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
   const actif=S.admin==='edition'?'marques':S.admin;
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
     <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${SECTIONS_ADMIN.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{if(!quitterSansEnregistrer())return;S.admin=b.dataset.s;vueAdmin()});
-  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,journal:admJournal}[S.admin])();
+  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,journal:admJournal}[S.admin])();
 }
 function confirmer(el,texte,action){
   const d=document.createElement('div');d.className='confirmation';
@@ -963,6 +965,7 @@ const MODELES={
   excl:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : jus d'orange" maxlength="120" aria-label="Mot à exclure">`},
   terme:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : boycott" maxlength="60" aria-label="Terme en surveillance">`},
   compte:{vide:{reseau:'Facebook',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="url" value="${esc(o.url)}" placeholder="Adresse du compte, ex. https://facebook.com/marque" aria-label="Adresse du compte">`},
+  rss:{vide:{nom:'',url:''},html:o=>`<input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du flux, ex. : Presse Abidjan" maxlength="80" aria-label="Nom du flux"><input type="url" data-k="url" value="${esc(o.url)}" placeholder="Adresse du flux, ex. https://rss.app/feeds/….xml" aria-label="Adresse du flux">`},
   hater:{vide:{reseau:'Facebook',nom:'',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du profil" maxlength="120" aria-label="Nom du profil"><input type="text" data-k="url" value="${esc(o.url||'')}" placeholder="Adresse du profil" aria-label="Adresse du profil">`}
 };
 function ligne(type,o){return `<div class="ligne ligne-${type}">${MODELES[type].html(o||MODELES[type].vide)}<button type="button" class="btn sec mini retirer" aria-label="Retirer cette ligne">Retirer</button></div>`}
@@ -1078,6 +1081,9 @@ async function admFormMarque(clientId){
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
       <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
 
+    <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque heure ; seules les publications qui répondent aux mots-clés de la marque sont retenues.</p>
+      <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
+
     <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d’un hater sur la marque devient un point d’attention.</p>
       <div id="z-haters">${zoneLignes('hater',hat.map(h=>({reseau:h.reseau,nom:h.nom,url:h.url||''})),'Ajouter un hater')}</div></div>
 
@@ -1142,9 +1148,11 @@ async function admFormMarque(clientId){
     if(haters.some(h=>!h.nom))return toast('Indiquez le nom de chaque hater.',true);
     const comptes=lireLignes($('#z-officiels .lignes')).filter(o=>o.url);
     if(!mots.length&&!comptes.length)return toast('Ajoutez au moins un mot-clé ou un compte officiel.',true);
+    const flux=lireLignes($('#z-rss .lignes')).filter(o=>o.url||o.nom);
+    if(flux.some(o=>!/^https:\/\/\S+$/i.test(o.url)))return toast('Chaque flux RSS doit avoir une adresse qui commence par https://',true);
     const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),logo_url:logo,
       mots_cles:mots,exclusions:lireLignes($('#z-excl .lignes')).map(o=>o.v).filter(Boolean),comptes_officiels:comptes,haters,
-      concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
+      flux_rss:flux.map(o=>({nom:o.nom||'Flux RSS',url:o.url})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
     $('#b-enregistrer').disabled=true;
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     $('#b-enregistrer').disabled=false;
@@ -1198,6 +1206,30 @@ async function admCriteres(){
     const b=fm.querySelector('[type=submit]');b.disabled=true;
     const {error}=await SB.rpc('modifier_criteres',{p_partie:fm.dataset.partie,p_valeurs:v});b.disabled=false;
     if(error)return toast(error.message,true);toast(fm.dataset.partie==='suivi'?'Critères de suivi validés':'Critères des points d’attention validés');admCriteres()});
+}
+
+// ---- Remontées de l'équipe : messages du groupe WhatsApp lus par le script de l'ordinateur de veille ----
+async function admRemontees(){
+  const z=$('#admin-corps');
+  const [{data:etat},{data:msgs}]=await Promise.all([SB.rpc('etat_remontees'),SB.from('remontees_equipe').select('*').order('recu_le',{ascending:false}).limit(100)]);
+  const e=etat||{};
+  z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Remontées de l’équipe</h3><span class="puce">${e.cle?(e.dernier?'Dernière réception '+date(e.dernier):'En attente du premier message'):'Script non relié'}</span></div>
+      <p class="muted small">Le groupe WhatsApp de l’équipe est lu en lecture seule par un script installé dans le navigateur de l’ordinateur de veille : rien n’est jamais écrit dans le groupe. Chaque lien Facebook, TikTok ou X partagé devient une remontée humaine, complétée au relevé suivant puis analysée. Elle est rattachée aux marques citées dans le message, à défaut à toutes.</p>
+      <div class="row"><span class="small"><b class="num">${nb(e.jour||0)}</b> message(s) reçu(s) en 24 h</span><button class="btn sec mini" id="nouvelle-cle" type="button">${e.cle?'Remplacer la clé du script':'Créer la clé du script'}</button></div>
+      <div id="zone-cle"></div>
+      <details class="aide-requete"><summary>Installer le script sur l’ordinateur de veille</summary><ol class="small">
+        <li>Dans Chrome ou Edge, installer l’extension Tampermonkey.</li>
+        <li>Ouvrir le fichier <b>remontees-equipe.user.js</b> fourni et l’installer dans Tampermonkey.</li>
+        <li>Ouvrir WhatsApp Web, puis le groupe suivi. Dans le menu Tampermonkey, choisir « Saisir la clé des remontées » et coller la clé créée ici.</li>
+        <li>Laisser l’onglet WhatsApp Web ouvert : les nouveaux messages sont envoyés toutes les minutes.</li></ol></details></div>
+    <div class="bloc"><div class="entete-vue"><h3>Derniers messages reçus</h3><span class="muted small">100 au plus</span></div>
+      ${(msgs||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Envoyé</th><th>Par</th><th>Message</th><th class="n">Liens</th></tr></thead><tbody>${msgs.map(m=>`<tr><td class="num small" style="white-space:nowrap">${date(m.envoye_le||m.recu_le)}</td><td class="small">${esc(m.auteur||'')}</td><td class="small">${esc(extrait(m.texte||'',40))}${(m.liens||[]).filter(lienSur).map(u=>`<div><a href="${esc(lienSur(u))}" target="_blank" rel="noopener">${esc(u.slice(0,70))}</a></div>`).join('')}</td><td class="n num">${(m.liens||[]).length}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun message reçu pour l’instant.</p>'}</div>`;
+  $('#nouvelle-cle').onclick=()=>{
+    const go=async()=>{const {data,error}=await SB.rpc('creer_cle_remontees');if(error)return toast(error.message,true);
+      $('#zone-cle').innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Clé du script, affichée une seule fois. Collez-la dans le menu du script sur l’ordinateur de veille.</div><div class="row"><div class="cle-remontees">${esc(data)}</div><button class="btn sec" type="button" id="copier-cle">Copier</button></div></div>`;
+      $('#copier-cle').onclick=async()=>{try{await navigator.clipboard.writeText(data);toast('Copié')}catch{toast('Sélectionnez la clé pour la copier.')}};
+      $('#nouvelle-cle').textContent='Remplacer la clé du script'};
+    if(e.cle)confirmer($('#nouvelle-cle'),'Remplacer la clé ? Le script actuel cessera d’envoyer jusqu’à la saisie de la nouvelle clé.',go);else go()};
 }
 
 // ---- Journal d'activité ----
