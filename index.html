@@ -44,7 +44,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .btn.sec:hover{border-color:var(--accent)}
 .btn.danger{background:transparent;color:var(--neg);border:1px solid color-mix(in srgb,var(--neg) 50%,transparent)}
 .btn.mini{padding:4px 9px;font-size:.8rem}
-input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:38px}
+input[type=text],input[type=search],input[type=datetime-local],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:38px}
 textarea{min-height:70px;resize:vertical}
 label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
@@ -114,16 +114,30 @@ section.vue{display:grid;gap:16px}
 .filtres{display:flex;flex-wrap:wrap;gap:8px}
 .filtres select,.filtres input{width:auto;min-width:0}
 .liste{display:grid;gap:10px}
-.pub{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:8px;min-width:0}
-.pub.Négatif{border-left-color:var(--neg)}
-.pub.Positif{border-left-color:var(--pos)}
+.barre-filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.barre-filtres select{width:auto;min-width:0;flex:1 1 170px;max-width:260px}
+.barre-filtres input[type=search]{flex:1 1 200px;max-width:280px;width:auto}
+.segments{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.segments button{background:var(--panel);color:var(--fg);border:0;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;min-height:38px}
+.segments button+button{border-left:1px solid var(--line)}
+.segments button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.grille-pubs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;align-items:start}
+.grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
-.pub .meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--muted)}
-.pub .meta b{color:var(--fg);font-weight:600}
-.pub .txt{overflow-wrap:anywhere}
-.pub .stats{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem}
-.pub .actions{display:flex;flex-wrap:wrap;gap:6px}
-.pub img.capture{max-width:min(320px,100%);border-radius:6px;border:1px solid var(--line)}
+.pub-image{display:block;height:128px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.pub-image img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.pub-corps{padding:12px 13px 13px;display:grid;gap:8px}
+.pub-auteur{font-weight:700;font-size:.98rem}
+.pub-texte{overflow-wrap:anywhere;line-height:1.5}
+.pub-meta{font-size:.8rem;color:var(--muted)}
+.pub-stats{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.82rem;color:var(--muted)}
+.pub-stats b{color:var(--fg)}
+.pub-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pub-actions a{font-weight:600;margin-right:4px}
+.pub-motifs{display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem}
+.pub-motifs span{background:var(--panel2);border-radius:10px;padding:1px 8px}
+.pub-motifs .statut{background:var(--accent);color:var(--on-accent);font-weight:600}
 .puce{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.75rem;font-weight:600;background:var(--panel2)}
 .puce.Négatif{color:var(--neg)} .puce.Positif{color:var(--pos)} .puce.Neutre{color:var(--neu)}
 .puce.acc{background:var(--accent);color:var(--on-accent)}
@@ -398,7 +412,7 @@ const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefr
 
 const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
-const S={moi:null,clients:[],marques:[],client:'tous',periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false};
+const S={moi:null,clients:[],marques:[],client:'tous',periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
@@ -551,49 +565,79 @@ async function vueTableau(){
 const VUES={
   attention:{titre:'Points d’attention',q:q=>q.eq('categorie','attention').neq('type','concurrent').or('statut_suivi.is.null,statut_suivi.neq."Alerte close",attention_close_le.gte.'+new Date(Date.now()-864e5).toISOString()).order('epingle',{ascending:false}).order('attention_depuis',{ascending:false}),vide:'Aucun point d’attention en cours.'},
   suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
-  publications:{titre:'Publications',periode:true,q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
+  publications:{titre:'Publications',periode:true,note:'Les publications suivies et les points d’attention n’y figurent plus : ils sont dans leur onglet. Les publications ordinaires restent 72 h.',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
   concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l’instant. Les concurrents se déclarent avec chaque marque, dans Administration.'},
   officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
 async function vueListe(k){
-  const v=VUES[k],c=$('#contenu');
-  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>${v.titre}</h2>
-    <div class="filtres"><select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>
-    <select id="f-sent" aria-label="Tonalité"><option value="">Toutes tonalités</option><option>Négatif</option><option>Neutre</option><option>Positif</option></select>
-    <select id="f-pf" aria-label="Réseau"><option value="">Tous réseaux</option><option>Facebook</option><option>TikTok</option><option>X</option></select>${v.periode?selPeriode():''}</div></div>
-    <div class="liste" id="liste"><p class="muted">Chargement…</p></div></section>`;
-  const charger=async()=>{
-    let q=filtreClient(v.q(SB.from('publications').select('*'))).is('archive_le',null).limit(200);
-    if(v.periode){const x=new Date(Date.now()-S.periode*36e5).toISOString();q=q.or(`publiee_le.gte.${x},and(publiee_le.is.null,remontee_le.gte.${x})`)}
-    const fm=$('#f-marque').value,fs=$('#f-sent').value,fp=$('#f-pf').value;
-    if(fm)q=q.eq('marque_id',fm);if(fs)q=q.eq('sentiment',fs);if(fp)q=q.eq('plateforme',fp);
-    const {data,error}=await q;
-    if(error){$('#liste').innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';return}
-    $('#liste').innerHTML=data.length?data.map(carte).join(''):`<div class="vide">${v.vide}</div>`;
+  const v=VUES[k],c=$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:''});
+  const plusieurs=marquesVisibles().length>1;
+  c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>${v.titre}</h2></div>
+    <div class="barre-filtres">
+      ${v.periode?`<div class="segments" role="group" aria-label="Période">${[24,48,72].map(n=>`<button type="button" data-h="${n}" aria-pressed="${S.periode===n}">${n} h</button>`).join('')}</div>`:''}
+      ${plusieurs?`<select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>`:''}
+      <select id="f-theme" aria-label="Thématique"><option value="">Toutes thématiques</option></select>
+      <select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>
+      <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option><option>Facebook</option><option>TikTok</option><option>X</option></select>
+      <select id="f-inter" aria-label="Interactions"><option value="">Toutes interactions</option><option value="10">Plus de 10 interactions</option><option value="100">Plus de 100 interactions</option><option value="1000">Plus de 1 000 interactions</option></select>
+      <select id="f-tri" aria-label="Tri"><option value="recentes">Tri : plus récentes</option><option value="engagement">Tri : plus d'interactions</option><option value="commentaires">Tri : plus commentées</option></select>
+      <input type="search" id="f-q" placeholder="Rechercher un mot, un auteur…" aria-label="Rechercher">
+      <button type="button" class="btn" id="f-rapport">Générer le rapport</button>
+    </div>
+    <p class="muted small" id="f-compte"></p>
+    <div class="grille-pubs" id="liste"><p class="muted">Chargement…</p></div></section>`;
+  let donnees=[];
+  const options=(id,valeurs,courant,tous)=>{$(id).innerHTML=`<option value="">${tous}</option>`+valeurs.map(x=>`<option ${x===courant?'selected':''}>${esc(x)}</option>`).join('')};
+  const afficher=()=>{
+    const q=norm(f.q);
+    let l=donnees.filter(p=>(!f.marque||String(p.marque_id)===f.marque)&&(!f.theme||p.theme===f.theme)&&(!f.lieu||(p.lieu||'Non localisé')===f.lieu)&&(!f.pf||p.plateforme===f.pf)
+      &&(!f.inter||interactions(p)>Number(f.inter))&&(!q||norm([p.auteur,p.titre,p.texte,p.theme,p.lieu].join(' ')).includes(q)));
+    const t=x=>new Date(x.publiee_le||x.remontee_le||0).getTime();
+    l.sort(f.tri==='engagement'?(a,b)=>interactions(b)-interactions(a):f.tri==='commentaires'?(a,b)=>(b.com||0)-(a.com||0):(a,b)=>t(b)-t(a));
+    const nom=f.marque?nomMarque(Number(f.marque)):S.client==='tous'?'Toutes les marques':nomClient(Number(S.client));
+    $('#f-compte').textContent=`${nom} · ${l.length} publication${l.length>1?'s':''}${v.periode?` · dernières ${S.periode} heures`:''}.${v.note?' '+v.note:''}`;
+    $('#liste').innerHTML=l.length?l.map(p=>carte(p,plusieurs)).join(''):`<div class="vide">${donnees.length?'Aucune publication ne correspond aux filtres.':v.vide}</div>`;
     $('#liste').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>agir(b.dataset.id,b.dataset.a));
   };
-  ['f-marque','f-sent','f-pf'].forEach(i=>$('#'+i).onchange=charger);
-  if($('#f-periode'))$('#f-periode').onchange=e=>{S.periode=Number(e.target.value);charger()};charger();
+  const charger=async()=>{
+    let q=filtreClient(v.q(SB.from('publications').select('*'))).is('archive_le',null).limit(500);
+    if(v.periode){const x=new Date(Date.now()-S.periode*36e5).toISOString();q=q.or(`publiee_le.gte.${x},and(publiee_le.is.null,remontee_le.gte.${x})`)}
+    const {data,error}=await q;
+    if(error){$('#liste').innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';return}
+    donnees=data||[];
+    options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
+    options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
+    afficher();
+  };
+  if($('#f-marque'))$('#f-marque').value=f.marque;
+  $('#f-pf').value=f.pf;$('#f-inter').value=f.inter;$('#f-tri').value=f.tri;$('#f-q').value=f.q;
+  [['f-marque','marque'],['f-theme','theme'],['f-lieu','lieu'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
+  let minuterie;$('#f-q').oninput=e=>{clearTimeout(minuterie);minuterie=setTimeout(()=>{f.q=e.target.value;afficher()},200)};
+  c.querySelectorAll('.segments button').forEach(b=>b.onclick=()=>{S.periode=Number(b.dataset.h);c.querySelectorAll('.segments button').forEach(x=>x.setAttribute('aria-pressed',x===b));charger()});
+  $('#f-rapport').onclick=()=>ouvrir('rapports');
+  charger();
 }
-function carte(p){
+const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function carte(p,avecMarque=true){
   const lien=lienSur(p.lien);
+  const b=(a,l)=>`<button class="btn sec mini" data-a="${a}" data-id="${p.id}">${l}</button>`;
   const act=peutAgir()?[
-    p.categorie==='publication'?`<button class="btn sec mini" data-a="suivre" data-id="${p.id}">Suivre</button><button class="btn sec mini" data-a="attention" data-id="${p.id}">Mettre en point d'attention</button>`:'',
-    p.categorie==='suivie'?`<button class="btn sec mini" data-a="ne_plus_suivre" data-id="${p.id}">Ne plus suivre</button><button class="btn sec mini" data-a="attention" data-id="${p.id}">Mettre en point d'attention</button>`:'',
-    p.categorie==='attention'?(p.epingle?`<button class="btn sec mini" data-a="desepingler" data-id="${p.id}">Désépingler</button>`:`<button class="btn sec mini" data-a="epingler" data-id="${p.id}">Épingler</button>`)+`<button class="btn sec mini" data-a="retirer_attention" data-id="${p.id}">Retirer des points d'attention</button>`:''
+    p.categorie==='publication'?b('suivre','Suivre cette publication')+b('attention','Mettre en point d’attention'):'',
+    p.categorie==='suivie'?b('ne_plus_suivre','Ne plus suivre')+b('attention','Mettre en point d’attention'):'',
+    p.categorie==='attention'?(p.epingle?b('desepingler','Désépingler'):b('epingler','Épingler'))+b('retirer_attention','Retirer des points d’attention'):''
   ].join(''):'';
+  const quand=p.categorie==='publication'?'remontée le '+date(p.remontee_le):'dernier relevé le '+date(p.dernier_releve_le||p.remontee_le);
   return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''}">
-    <div class="meta"><span class="puce acc">${esc(nomMarque(p.marque_id))}</span>${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}
-      <span><b>${esc(p.auteur||'Auteur inconnu')}</b> · ${esc(p.plateforme)}</span>
-      <span>${p.origine==='humaine'?'Remontée humaine':'Remontée automatisée'}</span>
-      ${p.theme?`<span>${esc(p.theme)}</span>`:''}${p.lieu?`<span>${esc(p.lieu)}</span>`:''}</div>
-    ${p.categorie==='attention'?`<div class="meta">${p.epingle?'<span class="puce acc">Épinglé</span>':''}${p.statut_suivi?`<span class="puce">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join(' · ')}</div>`:''}
-    ${p.titre?`<div><b>${esc(p.titre)}</b></div>`:''}
-    ${p.texte?`<div class="txt">${esc(p.texte)}</div>`:''}
-    ${p.capture?`<img class="capture" loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:''}
-    <div class="stats num"><span>${nb(p.jaime)} j'aime</span><span>${nb(p.com)} commentaires</span><span>${nb(p.part)} partages</span><span>${nb(p.vues)} vues</span></div>
-    <div class="meta"><span>Publiée le ${date(p.publiee_le)}</span><span>${p.categorie==='publication'?'Remontée le '+date(p.remontee_le):'Dernier passage le '+date(p.dernier_releve_le||p.remontee_le)}</span>${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">Voir la publication</a>`:''}</div>
-    ${act?`<div class="actions">${act}</div>`:''}
+    ${p.capture?`<a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}><img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication"></a>`:''}
+    <div class="pub-corps">
+      <div class="puces">${avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.type==='concurrent'?'<span class="puce">Concurrent</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
+      ${p.categorie==='attention'?`<div class="pub-motifs">${p.statut_suivi?`<span class="puce statut">${esc(p.statut_suivi)}</span>`:''}${(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}</div>`:''}
+      <div class="pub-auteur">${esc(p.auteur||'Auteur non disponible')}</div>
+      ${p.texte||p.titre?`<div class="pub-texte">« ${esc(p.texte||p.titre)} »</div>`:''}
+      <div class="pub-meta">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · publiée le ${date(p.publiee_le)} · ${quand}</div>
+      <div class="pub-stats num"><span><b>${nb(p.jaime)}</b> j'aime</span><span><b>${nb(p.com)}</b> comm.</span><span><b>${nb(p.part)}</b> partages</span>${p.vues?`<span><b>${nb(p.vues)}</b> vues</span>`:''}</div>
+      <div class="pub-actions">${lien?`<a href="${esc(lien)}" target="_blank" rel="noopener">Voir la publication</a>`:''}${act}</div>
+    </div>
   </article>`;
 }
 async function agir(id,a){
