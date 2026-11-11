@@ -91,6 +91,14 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .marque .agence{font-size:.75rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
 .compte{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
 .compte select{width:auto;padding:5px 8px}
+/* Choix de la marque : un bouton par marque visible */
+.barre-marques{background:var(--accent);color:var(--on-accent)}
+.barre-marques .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-block:7px}
+.barre-marques .small{font-weight:600}
+.boutons-marques{display:flex;flex-wrap:wrap;gap:6px}
+.boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
+.boutons-marques button img{width:18px;height:18px;object-fit:contain;background:#fff;border-radius:3px}
+.boutons-marques button[aria-pressed=true]{background:var(--on-accent);color:var(--accent)}
 nav.onglets{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6;background:color-mix(in srgb,var(--bg) 94%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding-top:env(safe-area-inset-top,0px)}
 nav.onglets .wrap{display:flex;gap:4px;overflow-x:auto}
 nav.onglets button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;white-space:nowrap;font-weight:500}
@@ -174,6 +182,31 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 .periode .perso[hidden]{display:none}
 .periode .perso label{display:grid;gap:2px;color:var(--muted)}
 .periode .perso input{width:auto}
+/* Tableau de bord */
+.grille-tdb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
+.grille-tdb.deux-tiers{grid-template-columns:2fr 1fr}
+.grille-tdb.deux{grid-template-columns:1fr 1fr}
+.grille-tdb>.bloc{margin:0;min-width:0}
+.grille-tdb>.bloc{align-content:start}
+.tdb .barre-app{grid-template-columns:minmax(80px,150px) 1fr auto}
+.tdb .barre-app b{white-space:nowrap;min-width:2.5em}
+.tdb .barre-app .piste i{background:var(--accent)}
+.tdb .camembert-vue{justify-content:center}
+.mini-chiffres{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mini-chiffres>div{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;display:grid}
+.mini-chiffres b{font:700 1.15rem var(--display)}
+.mini-chiffres span{font-size:.72rem;color:var(--muted)}
+.nuage-app{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 14px;padding:10px 6px;min-height:190px;line-height:1.3}
+.nuage-app span{color:var(--muted)}
+.nuage-app span.moyen{color:var(--fg)}
+.nuage-app span.fort{color:var(--accent);font-weight:700}
+.liste-tdb{display:grid;gap:8px}
+.ligne-tdb{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+.ligne-tdb:last-child{border-bottom:0}
+.puce.statut{background:var(--accent);color:var(--on-accent)}
+.tdb .camembert-app{width:150px}
+@media (max-width:1100px){.grille-tdb{grid-template-columns:1fr 1fr}.grille-tdb.deux-tiers,.grille-tdb.deux{grid-template-columns:1fr}}
+@media (max-width:720px){.grille-tdb{grid-template-columns:1fr}.mini-chiffres{grid-template-columns:repeat(2,1fr)}}
 /* Camembert de tonalité */
 .camembert-vue{display:flex;flex-wrap:wrap;gap:20px 36px;align-items:center}
 .camembert-app{width:180px;aspect-ratio:1;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 4px var(--panel2)}
@@ -420,14 +453,13 @@ body.rapport-ouvert{overflow:hidden}
         <div><h1 id="h-titre">Reputation Manager</h1><div class="agence" id="h-agence"></div></div>
       </div>
       <div class="compte">
-        <label class="small" style="display:flex;flex-direction:row;align-items:center;gap:6px">Marque
-          <select id="sel-client"></select></label>
         <span id="h-moi" class="muted"></span>
         <button class="btn sec mini" id="b-compte" type="button">Mon compte</button>
         <button class="btn sec mini" id="b-sortir" type="button">Se déconnecter</button>
       </div>
     </div>
   </header>
+  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><span class="small">Marque :</span><div class="boutons-marques" id="sel-client" role="group" aria-label="Choix de la marque"></div></div></div>
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
   <main class="wrap" id="contenu"></main>
 </div>
@@ -441,7 +473,7 @@ const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefr
 
 const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
-const S={moi:null,clients:[],marques:[],client:'tous',periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
+const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
@@ -494,14 +526,22 @@ async function chargerProfil(){
 async function chargerReferentiel(){
   const [c,m]=await Promise.all([SB.from('clients').select('*').order('nom'),SB.from('marques').select('*').order('nom')]);
   S.clients=c.data||[];S.marques=m.data||[];
-  const sel=$('#sel-client');
-  const opts=(S.clients.length>1?'<option value="tous">Toutes les marques</option>':'')+S.clients.map(x=>`<option value="${x.id}">${esc(x.nom)}</option>`).join('');
-  sel.innerHTML=opts||'<option value="tous">Aucune marque</option>';
-  if(S.client!=='tous'&&!S.clients.some(x=>String(x.id)===String(S.client)))S.client='tous';
-  if(S.clients.length===1)S.client=String(S.clients[0].id);
-  sel.value=S.client;sel.closest('label').hidden=S.clients.length<1;
+  // une seule marque à la fois : chaque espace (tableau de bord, publications, rapports…) ne montre que la marque choisie
+  if(!S.clients.some(x=>String(x.id)===String(S.client))){
+    let mem=null;try{mem=localStorage.getItem('marque_choisie')}catch{}
+    S.client=S.clients.some(x=>String(x.id)===mem)?mem:(S.clients[0]?String(S.clients[0].id):null);
+  }
+  dessinerMarques();
 }
-$('#sel-client').addEventListener('change',e=>{S.client=e.target.value;ouvrir(S.onglet)});
+function dessinerMarques(){
+  const z=$('#sel-client');
+  z.innerHTML=S.clients.map(x=>`<button type="button" data-c="${x.id}" aria-pressed="${String(x.id)===String(S.client)}">${x.logo_url?`<img src="${esc(x.logo_url)}" alt="">`:''}${esc(x.nom)}</button>`).join('');
+  $('#barre-marques').hidden=S.clients.length<1;
+  z.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+    if(String(S.client)===b.dataset.c||!quitterSansEnregistrer())return;
+    S.client=b.dataset.c;try{localStorage.setItem('marque_choisie',S.client)}catch{}
+    dessinerMarques();ouvrir(S.onglet)});
+}
 
 $('#f-connexion').addEventListener('submit',async e=>{
   e.preventDefault();$('#c-erreur').textContent='';$('#c-btn').disabled=true;
@@ -570,10 +610,10 @@ function brancherPeriode(racine,e,rappel){
     if(!du||!au||new Date(du)>=new Date(au))return toast('Vérifiez les dates : le début doit précéder la fin.',true);
     e.periode='perso';e.du=du;e.au=au;rappel()};
 }
-function filtreClient(q){return S.client==='tous'?q:q.eq('client_id',S.client)}
+function filtreClient(q){return q.eq('client_id',S.client??-1)}
 const nomMarque=id=>S.marques.find(m=>m.id===id)?.nom||'';
 const nomClient=id=>S.clients.find(c=>c.id===id)?.nom||'';
-function marquesVisibles(){return S.marques.filter(m=>S.client==='tous'||String(m.client_id)===String(S.client))}
+function marquesVisibles(){return S.marques.filter(m=>String(m.client_id)===String(S.client))}
 const interactions=p=>(p.jaime||0)+(p.com||0)+(p.part||0);
 const pct=(a,b)=>b?Math.round(a*100/b)+' %':'—';
 
@@ -587,35 +627,73 @@ function camembert(pubs){
   return `<div class="camembert-vue"><div class="camembert-app" role="img" aria-label="Positif ${P('Positif')} %, neutre ${P('Neutre')} %, négatif ${P('Négatif')} %" style="background:conic-gradient(${parts.join(',')})"></div>
     <ul class="legende-app">${['Positif','Neutre','Négatif'].map(k=>`<li><i style="background:${c[k]}"></i><span>${k}</span><b class="num">${P(k).toLocaleString('fr-FR')} %</b><span class="muted small num">${n[k]} publication${n[k]>1?'s':''}</span></li>`).join('')}</ul></div>`;
 }
+// mots vides écartés du nuage de mots
+const MOTS_VIDES=new Set(('les des une est pas pour que qui dans sur avec par plus mais tout tous toute toutes cette ces son ses leur leurs nous vous ils elles elle lui aux '+
+ 'été être avoir fait faire comme très aussi bien sont ont était sans avant après alors donc car encore même quand depuis chez entre vers sous '+
+ 'http https www com the and for you this that with from your are was will cela rien trop toujours jamais puis dont quoi comment pourquoi '+
+ 'votre notre vos mon ton mes tes moi toi avez avons sera serait peut faut vraiment juste ainsi autre autres celle celui ceux deux trois quoi '+
+ 'chaque fois jour jours heure heures aujourd hier demain voici voila oui non merci svp ici tres deja apres meme etre etait').split(' '));
+function nuageMots(pubs,exclus=[]){
+  const ex=new Set(exclus.flatMap(x=>norm(x).split(/[^a-z0-9]+/)).filter(Boolean));
+  const n={};
+  for(const p of pubs)for(const w of norm(p.texte||'').replace(/https?:\/\/\S+/g,' ').split(/[^a-z0-9#'’-]+/)){
+    const m=w.replace(/^['’-]+|['’-]+$/g,'').replace(/^(l|d|j|qu|n|s|c|m|t)['’]/,'');
+    if(m.length<4||MOTS_VIDES.has(m)||ex.has(m)||/^\d+$/.test(m))continue;n[m]=(n[m]||0)+1}
+  const l=Object.entries(n).sort((a,b)=>b[1]-a[1]).slice(0,40);
+  if(!l.length)return '<p class="muted small">Aucun mot sur la période.</p>';
+  const max=l[0][1],min=l[l.length-1][1];
+  return `<div class="nuage-app">${l.sort((a,b)=>a[0].localeCompare(b[0],'fr')).map(([w,c])=>{const k=max===min?.5:(c-min)/(max-min);return `<span style="font-size:${(.85+k*1.6).toFixed(2)}rem" class="${k>.6?'fort':k>.3?'moyen':''}" title="${c} occurrence${c>1?'s':''}">${esc(w)}</span>`}).join(' ')}</div>`;
+}
+const barresApp=(l,vide='Aucune donnée sur la période.')=>{if(!l.length)return `<p class="muted small">${vide}</p>`;const max=Math.max(1,...l.map(x=>x[1]));
+  return `<div class="barres-app">${l.map(([k,v,t])=>`<div class="barre-app"><span class="lib" title="${esc(k)}">${esc(k)}</span><span class="piste"><i style="width:${Math.max(2,v*100/max)}%"></i></span><b class="num">${t??nb(v)}</b></div>`).join('')}</div>`};
 async function vueTableau(){
-  const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
+  const c=$('#contenu');
+  if(!S.client){c.innerHTML=`<section class="vue"><div class="vide">Aucune marque suivie pour l'instant.${estAdmin()?'<br>Créez une marque dans <a href="#" id="va-admin">Administration › Création de marque</a>.':''}</div></section>`;
+    const va=$('#va-admin');if(va)va.onclick=e=>{e.preventDefault();S.admin='creation';ouvrir('admin')};return}
+  c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const bt=bornes();
-  const [p24,att,suiv]=await Promise.all([
-    filtreClient(SB.from('publications').select('id,marque_id,sentiment,jaime,com,part,type').gte('remontee_le',bt.debut.toISOString()).lt('remontee_le',bt.fin.toISOString()).neq('type','concurrent')),
-    filtreClient(SB.from('publications').select('id,marque_id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,lien').eq('categorie','attention').neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
-    filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie'))]);
-  const pubs=p24.data||[],atts=att.data||[];
-  const neg=pubs.filter(p=>p.sentiment==='Négatif').length,inter=pubs.reduce((s,p)=>s+interactions(p),0);
-  const ms=marquesVisibles();
-  const lignes=ms.map(m=>{const l=pubs.filter(p=>p.marque_id===m.id),n=l.filter(p=>p.sentiment==='Négatif').length;
-    return `<tr><td>${esc(m.nom)}</td><td class="n num">${l.length}</td><td class="n num">${pct(n,l.length)}</td><td class="n num">${nb(l.reduce((s,p)=>s+interactions(p),0))}</td><td class="n num">${atts.filter(a=>a.marque_id===m.id).length}</td></tr>`}).join('');
-  const titreClient=S.client==='tous'?'Toutes les marques':nomClient(Number(S.client));
-  c.innerHTML=`<section class="vue">
-    <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(titreClient)} · ${libellePeriode()}</span>${periodeHTML()}</div></div>
+  const [pp,att,suiv]=await Promise.all([
+    filtreClient(SB.from('publications').select('id,sentiment,jaime,com,part,vues,plateforme,theme,lieu,texte,titre,auteur,lien,remontee_le,publiee_le').eq('type','remontee').gte('remontee_le',bt.debut.toISOString()).lt('remontee_le',bt.fin.toISOString())).limit(3000),
+    filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
+    filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie').is('archive_le',null))]);
+  const pubs=pp.data||[],atts=att.data||[];
+  const neg=pubs.filter(p=>p.sentiment==='Négatif').length,somme=k=>pubs.reduce((t,p)=>t+(p[k]||0),0);
+  const jaime=somme('jaime'),com=somme('com'),part=somme('part'),vues=somme('vues'),inter=jaime+com+part;
+  const grouper=(cle,defaut)=>{const o={};for(const p of pubs){const k=p[cle]||defaut;if(!k)continue;o[k]=o[k]||[0,0];o[k][0]++;o[k][1]+=interactions(p)}return Object.entries(o)};
+  const themes=grouper('theme').sort((a,b)=>b[1][0]-a[1][0]);
+  const lieux=grouper('lieu').sort((a,b)=>b[1][0]-a[1][0]);
+  const reseaux=grouper('plateforme').sort((a,b)=>b[1][1]-a[1][1]);
+  const top=[...pubs].sort((a,b)=>interactions(b)-interactions(a)).slice(0,3);
+  const marque=S.clients.find(x=>String(x.id)===String(S.client));
+  c.innerHTML=`<section class="vue tdb">
+    <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(marque?.nom||'')} · ${libellePeriode()}</span>${periodeHTML()}</div></div>
     <div class="chiffres">
-      <div class="chiffre"><b class="num">${pubs.length}</b><span>publications remontées</span></div>
+      <div class="chiffre"><b class="num">${nb(pubs.length)}</b><span>publications remontées</span></div>
       <div class="chiffre"><b class="num">${pct(neg,pubs.length)}</b><span>de publications négatives</span></div>
       <div class="chiffre"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
       <div class="chiffre ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
       <div class="chiffre"><b class="num">${suiv.count||0}</b><span>publications suivies</span></div>
     </div>
-    <div class="bloc"><h3>Tonalité des publications</h3>${camembert(pubs)}</div>
-    ${ms.length?`<div class="bloc"><h3>Par marque</h3><div class="defile"><table class="par-marque"><thead><tr><th>Marque</th><th class="n">Publications</th><th class="n">Négatives</th><th class="n">Interactions</th><th class="n">Points d'attention</th></tr></thead><tbody>${lignes}</tbody></table></div></div>`
-      :`<div class="vide">Aucune marque suivie pour l'instant.${estAdmin()?'<br>Créez une marque dans <a href="#" id="va-admin">Administration › Création de marque</a>.':''}</div>`}
-    <div class="bloc"><h3>Points d'attention</h3>${atts.length?'<div class="liste">'+atts.slice(0,5).map(a=>`<div class="small"><span class="puce acc">${esc(nomMarque(a.marque_id))}</span> ${a.epingle?'<span class="puce">Épinglé</span> ':''}<b>${esc(a.auteur||'Auteur inconnu')}</b> · ${esc(a.plateforme)} · ${esc(a.titre||(a.texte||'').slice(0,120))} · <span class="num">${nb(a.com)}</span> commentaires</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
+    <div class="grille-tdb">
+      <div class="bloc"><h3>Sens des publications</h3>${camembert(pubs)}</div>
+      <div class="bloc"><h3>Interactions</h3>
+        <div class="mini-chiffres"><div><b class="num">${nb(jaime)}</b><span>j'aime</span></div><div><b class="num">${nb(com)}</b><span>commentaires</span></div><div><b class="num">${nb(part)}</b><span>partages</span></div><div><b class="num">${vues?nb(vues):'—'}</b><span>vues</span></div></div>
+        <div class="sous-titre">Par réseau</div>${barresApp(reseaux.map(([k,v])=>[k,v[1],`${nb(v[1])} · ${v[0]} pub.`]))}</div>
+      <div class="bloc"><h3>Principales thématiques</h3>${barresApp(themes.slice(0,7).map(([k,v])=>[k,v[0]]),'Aucune publication analysée sur la période.')}</div>
+    </div>
+    <div class="grille-tdb deux-tiers">
+      <div class="bloc"><h3>Nuage de mots</h3>${nuageMots(pubs,[marque?.nom||''])}</div>
+      <div class="bloc"><h3>Localités citées</h3>${barresApp(lieux.slice(0,8).map(([k,v])=>[k,v[0]]),'Aucune localité citée sur la période.')}</div>
+    </div>
+    <div class="grille-tdb deux">
+      <div class="bloc"><div class="entete-vue"><h3>Points d'attention en cours</h3>${atts.length?'<button class="btn sec mini" id="va-att" type="button">Tout voir</button>':''}</div>
+        ${atts.length?'<div class="liste-tdb">'+atts.slice(0,5).map(a=>`<div class="ligne-tdb">${a.epingle?'<span class="puce acc">Épinglé</span>':''}<span class="puce">${esc(a.plateforme)}</span><b>${esc(a.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(a.titre||a.texte||'',12))}</span><span class="num small">${nb(a.com)} comm.</span>${a.statut_suivi?`<span class="puce statut">${esc(a.statut_suivi)}</span>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
+      <div class="bloc"><h3>Publications les plus engageantes</h3>
+        ${top.length?'<div class="liste-tdb">'+top.map(p=>`<div class="ligne-tdb"><span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}<b>${esc(p.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(p.titre||p.texte||'',12))}</span><span class="num small">${nb(interactions(p))} interactions</span>${lienSur(p.lien)?`<a class="small" href="${esc(lienSur(p.lien))}" target="_blank" rel="noopener">Voir</a>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucune publication sur la période.</p>'}</div>
+    </div>
   </section>`;
   brancherPeriode(c,S,vueTableau);
-  const va=$('#va-admin');if(va)va.onclick=e=>{e.preventDefault();S.admin='creation';ouvrir('admin')};
+  const va=$('#va-att');if(va)va.onclick=()=>ouvrir('attention');
   const n=$('#n-attention');if(n){n.textContent=atts.length;n.hidden=!atts.length}
 }
 
@@ -630,11 +708,10 @@ const VUES={
 async function vueListe(k,cible){
   const v=VUES[k],c=cible||$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:'',periode:0});
   const ep=v.periode?S:f;   // période commune (publications, canaux officiels, concurrents) ou propre à l'onglet (« Tout » par défaut)
-  const plusieurs=marquesVisibles().length>1;
+  const plusieurs=false;   // une seule marque par espace
   c.innerHTML=`<section class="vue">${cible?'':`<div class="entete-vue"><h2>${v.titre}</h2></div>`}
     <div class="barre-filtres">
       ${periodeHTML(ep,!v.periode)}
-      ${plusieurs?`<select id="f-marque" aria-label="Marque"><option value="">Toutes les marques</option>${marquesVisibles().map(m=>`<option value="${m.id}">${esc(m.nom)}</option>`).join('')}</select>`:''}
       <select id="f-theme" aria-label="Thématique"><option value="">Toutes thématiques</option></select>
       <select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>
       <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option><option>Facebook</option><option>TikTok</option><option>X</option></select>
@@ -653,7 +730,7 @@ async function vueListe(k,cible){
       &&(!f.inter||interactions(p)>Number(f.inter))&&(!q||norm([p.auteur,p.titre,p.texte,p.theme,p.lieu].join(' ')).includes(q)));
     const t=x=>new Date(x.publiee_le||x.remontee_le||0).getTime();
     l.sort(f.tri==='engagement'?(a,b)=>interactions(b)-interactions(a):f.tri==='commentaires'?(a,b)=>(b.com||0)-(a.com||0):(a,b)=>t(b)-t(a));
-    const nom=f.marque?nomMarque(Number(f.marque)):S.client==='tous'?'Toutes les marques':nomClient(Number(S.client));
+    const nom=nomClient(Number(S.client));
     $('#f-compte').textContent=`${nom} · ${l.length} publication${l.length>1?'s':''}${bornes(ep)?' · '+libellePeriode(ep):''}.${v.note?' '+v.note:''}`;
     $('#liste').innerHTML=l.length?l.map(p=>carte(p,plusieurs)).join(''):`<div class="vide">${donnees.length?'Aucune publication ne correspond aux filtres.':v.vide}</div>`;
     $('#liste').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>agir(b.dataset.id,b.dataset.a));
@@ -669,9 +746,8 @@ async function vueListe(k,cible){
     options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
     afficher();
   };
-  if($('#f-marque'))$('#f-marque').value=f.marque;
   $('#f-pf').value=f.pf;$('#f-inter').value=f.inter;$('#f-tri').value=f.tri;$('#f-q').value=f.q;
-  [['f-marque','marque'],['f-theme','theme'],['f-lieu','lieu'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
+  [['f-theme','theme'],['f-lieu','lieu'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
   let minuterie;$('#f-q').oninput=e=>{clearTimeout(minuterie);minuterie=setTimeout(()=>{f.q=e.target.value;afficher()},200)};
   brancherPeriode(c,ep,charger);
   $('#f-rapport').onclick=()=>ouvrir('rapports');
@@ -728,7 +804,7 @@ async function comparaison(z,conc){
   const {data,error}=await filtreClient(SB.from('publications').select('id,client_id,marque_id,type,concurrent_id,auteur,plateforme,jaime,com,part,vues,publiee_le,remontee_le,lien,texte,titre')
     .in('type',['officiel','concurrent'])).order('publiee_le',{ascending:false,nullsFirst:false}).limit(1000);
   if(error)return z.innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';
-  const marques=S.clients.filter(x=>S.client==='tous'||String(x.id)===String(S.client));
+  const marques=S.clients.filter(x=>String(x.id)===String(S.client));
   const stats=(nom,l,estMarque)=>{l=l.slice(0,10);const n=l.length,s=k=>l.reduce((t,p)=>t+(p[k]||0),0);
     const dates=l.map(p=>new Date(p.publiee_le||p.remontee_le).getTime()).filter(x=>x);const jours=dates.length>1?(Math.max(...dates)-Math.min(...dates))/864e5:0;
     const top=[...l].sort((a,b)=>interactions(b)-interactions(a))[0];
@@ -1109,7 +1185,7 @@ const versLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString()
 async function vueRapports(){
   const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const {data,error}=await filtreClient(SB.from('rapports').select('id,client_id,type,debut,fin,cree_le,cree_par,envoi_prevu,envoye_le')).order('cree_le',{ascending:false}).limit(100);
-  const ms=S.clients.filter(x=>S.client==='tous'||String(x.id)===String(S.client));
+  const ms=S.clients.filter(x=>String(x.id)===String(S.client));
   const maintenant=new Date();
   c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports</h2></div>
     <form class="bloc" id="f-rapport"><h3>Générer un rapport</h3><p class="muted small" style="margin:0">Un rapport ne couvre qu’une seule marque.</p>
