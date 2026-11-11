@@ -1308,12 +1308,9 @@ const jourHeure=v=>new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-di
 const jour=v=>new Date(v).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'});
 const versLocal=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
 async function vueRapports(){
-  const c=$('#contenu');c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
-  const {data,error}=await filtreClient(SB.from('rapports').select('id,client_id,type,debut,fin,cree_le,cree_par,envoi_prevu,envoye_le')).order('cree_le',{ascending:false}).limit(100);
+  const c=$('#contenu');
   const auj=new Date().toISOString().slice(0,10),il_y_a=new Date(Date.now()-10*864e5).toISOString().slice(0,10);
   const choixMarque=id=>S.clients.length<2?'':`<select id="${id}" aria-label="Marque">${S.clients.map(x=>`<option value="${x.id}" ${String(x.id)===String(S.client)?'selected':''}>${esc(x.nom)}</option>`).join('')}</select>`;
-  const libType={quotidien:'Journalier',demande:'Statistiques',attention:'Points d’attention'};
-  const nomMarque=id=>S.clients.find(x=>x.id===id)?.nom||'';
   c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports</h2></div>
     ${S.clients.length?`<div class="trois-rapports">
       <div class="bloc carte-rapport"><h3>Rapport journalier</h3><p class="muted small">Publications des dernières 24 heures (période exacte indiquée dans le PDF) ; produit automatiquement chaque matin à 6h00 UTC.</p>
@@ -1326,13 +1323,11 @@ async function vueRapports(){
         <div class="choix-att" id="ra-choix"><p class="muted small">Chargement…</p></div>
         <div class="row"><button class="btn" type="button" id="ra-btn">Générer le PDF</button></div></div>
     </div>`:'<div class="vide">Aucune marque suivie pour l’instant.</div>'}
-    <div class="bloc"><h3>Rapports produits</h3>
-      ${error?'<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>':(data||[]).length?`<div class="defile"><table class="tab"><thead><tr><th>Type</th>${S.clients.length>1?'<th>Marque</th>':''}<th>Période couverte</th><th>Produit le</th><th></th></tr></thead><tbody>
-      ${data.map(r=>`<tr><td><b>${libType[r.type]||r.type}</b></td>${S.clients.length>1?`<td>${esc(nomMarque(r.client_id))}</td>`:''}<td class="small num">${jourHeure(r.debut)}<br>${jourHeure(r.fin)}</td><td class="small num">${jourHeure(r.cree_le)}</td><td style="text-align:right"><button class="btn mini" data-v="${r.id}">Télécharger le PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun rapport pour l’instant.</p>'}</div></section>`;
-  c.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>telechargerRapport(Number(b.dataset.v),b));
+    </section>`;
   if(!S.clients.length)return;
   const marqueDe=id=>Number(($('#'+id)||{}).value||S.client);
-  const lancer=async(btn,appel)=>{btn.disabled=true;try{const {data:id,error}=await appel();if(error)return toast(error.message,true);await telechargerRapport(id,btn);vueRapports()}finally{btn.disabled=false}};
+  // le rapport généré se télécharge aussitôt
+  const lancer=async(btn,appel)=>{btn.disabled=true;toast('Préparation du PDF…');try{const {data:id,error}=await appel();if(error)return toast(error.message,true);await telechargerRapport(id,btn)}finally{btn.disabled=false}};
   $('#rj-btn').onclick=e=>{const j=$('#rj-jour').value;if(!j)return toast('Choisissez une date.',true);
     lancer(e.target,()=>SB.rpc('rapport_journalier',{p_client:marqueDe('rj-marque'),p_jour:j}))};
   $('#rp-btn').onclick=e=>{const d=$('#rp-debut').value,f=$('#rp-fin').value;
