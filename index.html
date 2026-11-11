@@ -1338,7 +1338,6 @@ async function vueRapports(){
   $('#rp-btn').onclick=e=>{const d=$('#rp-debut').value,f=$('#rp-fin').value;
     if(!d||!f||d>f)return toast('Vérifiez les dates : le début doit précéder la fin.',true);
     const debut=new Date(d+'T00:00:00Z'),fin=new Date(Math.min(Date.now(),new Date(f+'T00:00:00Z').getTime()+864e5));
-    if(fin-debut>31*864e5)return toast('La période ne peut pas dépasser 31 jours.',true);
     lancer(e.target,()=>SB.rpc('enregistrer_rapport_demande',{p_client:marqueDe('rp-marque'),p_debut:debut.toISOString(),p_fin:fin.toISOString()}))};
   const chargerChoix=async()=>{const z=$('#ra-choix');z.innerHTML='<p class="muted small">Chargement…</p>';
     const {data:ch,error:e}=await SB.rpc('choix_rapport_attention',{p_client:marqueDe('ra-marque')});
