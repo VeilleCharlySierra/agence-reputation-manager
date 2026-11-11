@@ -99,7 +99,24 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
 .boutons-marques button img{width:18px;height:18px;object-fit:contain;background:#fff;border-radius:3px}
 .boutons-marques button[aria-pressed=true]{background:var(--on-accent);color:var(--accent)}
-nav.onglets{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:6;background:color-mix(in srgb,var(--bg) 94%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding-top:env(safe-area-inset-top,0px)}
+/* En-tête figé : bandeau, choix de la marque et onglets restent en haut de l'écran */
+.entete-fixe{position:sticky;top:0;z-index:6;background:var(--bg);padding-top:env(safe-area-inset-top,0px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+nav.onglets{border-bottom:1px solid var(--line);background:var(--bg)}
+@media (max-width:720px){
+  header.haut .wrap{flex-wrap:nowrap;justify-content:space-between;padding-block:7px;gap:8px}
+  header.haut #h-agence,header.haut #h-moi{display:none}
+  header.haut h1{display:none}
+  header.haut .marque{min-width:0;flex:1 1 auto}
+  header.haut .marque>div{min-width:0}
+  header.haut #h-logo{height:26px;width:auto}
+  header.haut .compte{flex-wrap:nowrap;gap:6px}
+  header.haut .compte .btn{padding:4px 8px;font-size:.75rem;white-space:nowrap}
+  .barre-marques .wrap{flex-wrap:nowrap;padding-block:6px}
+  .barre-marques .small{display:none}
+  .boutons-marques{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .boutons-marques button{white-space:nowrap;min-height:30px;padding:3px 10px}
+  nav.onglets button{padding:9px 10px}
+}
 nav.onglets .wrap{display:flex;gap:4px;overflow-x:auto}
 nav.onglets button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;white-space:nowrap;font-weight:500}
 nav.onglets button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
@@ -159,7 +176,7 @@ section.vue{display:grid;gap:16px}
 
 /* Administration */
 .admin-grille{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
-.admin-menu{display:grid;gap:2px;position:sticky;top:64px}
+.admin-menu{display:grid;gap:2px;position:sticky;top:calc(var(--haut-entete,150px) + 12px)}
 .admin-menu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;color:var(--muted);cursor:pointer}
 .admin-menu button[aria-current=true]{background:var(--panel);color:var(--fg)}
 .bloc{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
@@ -452,6 +469,7 @@ body.rapport-ouvert{overflow:hidden}
 
 <!-- ===== Application ===== -->
 <div id="ecran-app" hidden>
+  <div class="entete-fixe" id="entete-fixe">
   <header class="haut">
     <div class="wrap">
       <div class="marque">
@@ -467,6 +485,7 @@ body.rapport-ouvert{overflow:hidden}
   </header>
   <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><span class="small">Marque :</span><div class="boutons-marques" id="sel-client" role="group" aria-label="Choix de la marque"></div></div></div>
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
+  </div>
   <main class="wrap" id="contenu"></main>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -539,6 +558,8 @@ async function chargerReferentiel(){
   }
   dessinerMarques();
 }
+// hauteur de l'en-tête figé, pour placer les éléments collants en dessous
+new ResizeObserver(()=>document.documentElement.style.setProperty('--haut-entete',$('#entete-fixe').offsetHeight+'px')).observe($('#entete-fixe'));
 function dessinerMarques(){
   const z=$('#sel-client');
   z.innerHTML=S.clients.map(x=>`<button type="button" data-c="${x.id}" aria-pressed="${String(x.id)===String(S.client)}">${x.logo_url?`<img src="${esc(x.logo_url)}" alt="">`:''}${esc(x.nom)}</button>`).join('');
