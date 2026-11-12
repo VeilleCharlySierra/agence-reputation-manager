@@ -553,6 +553,8 @@ const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','use
 const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 // Passages de collecte (heure UTC = heure d'Abidjan), fixés par la formule de l'agence
+// plateformes surveillées : recherche par mots-clés, comptes officiels et remontées de l'équipe
+const PLATEFORMES=['Facebook','X','TikTok','YouTube','Instagram','LinkedIn','Telegram','Web'];
 const PASSAGES=['02:35','05:35','08:35','11:35','14:35','17:35','20:35','23:35'];
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
@@ -809,7 +811,7 @@ async function vueListe(k,cible){
       ${periodeHTML(ep,!v.periode)}
       <select id="f-theme" aria-label="Thématique"><option value="">Toutes thématiques</option></select>
       <select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>
-      <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option><option>Facebook</option><option>TikTok</option><option>X</option></select>
+      <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option>${PLATEFORMES.map(x=>`<option>${x}</option>`).join('')}</select>
       <select id="f-inter" aria-label="Interactions"><option value="">Toutes interactions</option><option value="10">Plus de 10 interactions</option><option value="100">Plus de 100 interactions</option><option value="1000">Plus de 1 000 interactions</option></select>
       <select id="f-tri" aria-label="Tri"><option value="recentes">Tri : plus récentes</option><option value="engagement">Tri : plus d'interactions</option><option value="commentaires">Tri : plus commentées</option></select>
       <input type="search" id="f-q" placeholder="Rechercher un mot, un auteur…" aria-label="Rechercher">
@@ -841,6 +843,7 @@ async function vueListe(k,cible){
     // relevés horaires des points d'attention et des publications suivies (évolution des chiffres)
     if(k==='attention'||k==='suivies'){const ids=donnees.map(p=>p.id);if(ids.length){const {data:rl}=await SB.from('releves').select('publication_id,releve_le,jaime,com,part,vues').in('publication_id',ids).order('releve_le',{ascending:true}).limit(5000);
       for(const id of ids)RELEVES[id]=[];for(const r of rl||[])(RELEVES[r.publication_id]||=[]).push(r)}}
+    options('#f-pf',[...new Set([...PLATEFORMES,...donnees.map(p=>p.plateforme).filter(x=>x&&x!=='Capture')])],f.pf,'Toutes plateformes');
     options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
     options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
     afficher();
@@ -1055,7 +1058,7 @@ async function admRecap(){
 }
 
 // ---- Lignes de saisie (mots-clés, comptes, haters…) ----
-const RESEAUX=['Facebook','TikTok','X'];
+const RESEAUX=['Facebook','TikTok','X','YouTube','Instagram','LinkedIn'];
 const optReseau=v=>RESEAUX.map(r=>`<option ${r===v?'selected':''}>${r}</option>`).join('');
 const MODELES={
   mot:{vide:{a:'',op:'',b:''},html:o=>`<input type="text" data-k="a" value="${esc(o.a)}" placeholder="Premier mot-clé, ex. : Orange Money" maxlength="120" aria-label="Premier mot-clé">
