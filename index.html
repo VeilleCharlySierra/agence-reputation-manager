@@ -733,7 +733,9 @@ async function vueTableau(){
   c.innerHTML='<section class="vue"><p class="muted">Chargement…</p></section>';
   const bt=bornes();
   const [pp,att,suiv]=await Promise.all([
-    filtreClient(SB.from('publications').select('id,sentiment,jaime,com,part,vues,plateforme,theme,lieu,texte,titre,auteur,lien,remontee_le,publiee_le').eq('type','remontee').gte('remontee_le',bt.debut.toISOString()).lt('remontee_le',bt.fin.toISOString())).limit(3000),
+    // mêmes règles que les listes : publications visibles (non archivées), datées par leur date de publication sur la période
+    filtreClient(SB.from('publications').select('id,categorie,sentiment,jaime,com,part,vues,plateforme,theme,lieu,texte,titre,auteur,lien,remontee_le,publiee_le').eq('type','remontee').is('archive_le',null)
+      .or(`and(publiee_le.gte.${bt.debut.toISOString()},publiee_le.lt.${bt.fin.toISOString()}),and(publiee_le.is.null,remontee_le.gte.${bt.debut.toISOString()},remontee_le.lt.${bt.fin.toISOString()})`)).limit(3000),
     filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie').is('archive_le',null))]);
   const pubs=pp.data||[],atts=att.data||[];
@@ -748,7 +750,7 @@ async function vueTableau(){
   c.innerHTML=`<section class="vue tdb">
     <div class="entete-vue"><h2>Tableau de bord</h2><div class="filtres"><span class="muted small" style="align-self:center">${esc(marque?.nom||'')} · ${libellePeriode()}</span>${periodeHTML()}</div></div>
     <div class="tdb-grille">
-      <div class="chiffre s6"><b class="num">${nb(pubs.length)}</b><span>publications remontées</span></div>
+      <div class="chiffre s6"><b class="num">${nb(pubs.length)}</b><span>publications remontées${pubs.length?` <small class="muted">(${[[pubs.filter(p=>p.categorie==='publication').length,'dans Publications'],[pubs.filter(p=>p.categorie==='attention').length,'en points d’attention'],[pubs.filter(p=>p.categorie==='suivie').length,'suivies']].filter(x=>x[0]).map(x=>x[0]+' '+x[1]).join(', ')})</small>`:''}</span></div>
       <div class="chiffre s6"><b class="num">${pct(neg,analysees)}</b><span>de publications négatives${analysees<pubs.length?` <small class="muted">(sur ${analysees} analysée${analysees>1?'s':''})</small>`:''}</span></div>
       <div class="chiffre s6"><b class="num">${nb(inter)}</b><span>interactions (j'aime, commentaires, partages)</span></div>
       <div class="chiffre s6 ${atts.length?'alerte':''}"><b class="num">${atts.length}</b><span>points d'attention en cours</span></div>
@@ -982,13 +984,14 @@ async function admRecap(){
   await chargerReferentiel();
   const bt=bornes(),duree=bt.fin-bt.debut,debut=bt.debut.toISOString(),finP=bt.fin.toISOString(),avant=new Date(bt.debut-duree).toISOString();
   const [pp,att,suiv,rap]=await Promise.all([
-    SB.from('publications').select('client_id,sentiment,jaime,com,part,remontee_le,theme').gte('remontee_le',avant).lt('remontee_le',finP).eq('type','remontee').limit(5000),
+    SB.from('publications').select('client_id,sentiment,jaime,com,part,remontee_le,publiee_le,theme').eq('type','remontee').is('archive_le',null)
+      .or(`and(publiee_le.gte.${avant},publiee_le.lt.${finP}),and(publiee_le.is.null,remontee_le.gte.${avant},remontee_le.lt.${finP})`).limit(5000),
     SB.from('publications').select('client_id,statut_suivi').eq('categorie','attention').neq('type','concurrent').is('archive_le',null),
     SB.from('publications').select('client_id').eq('categorie','suivie').is('archive_le',null),
     SB.from('rapports').select('client_id,cree_le').order('cree_le',{ascending:false}).limit(200)]);
-  const pubs=pp.data||[];
+  const pubs=(pp.data||[]).map(p=>({...p,date_ref:p.publiee_le||p.remontee_le}));
   const lignes=S.clients.map(c=>{
-    const cour=pubs.filter(p=>p.client_id===c.id&&p.remontee_le>=debut),prec=pubs.filter(p=>p.client_id===c.id&&p.remontee_le<debut);
+    const cour=pubs.filter(p=>p.client_id===c.id&&new Date(p.date_ref)>=bt.debut),prec=pubs.filter(p=>p.client_id===c.id&&new Date(p.date_ref)<bt.debut);
     const neg=cour.filter(p=>p.sentiment==='Négatif').length,an=cour.filter(p=>['Positif','Neutre','Négatif'].includes(p.sentiment)).length,inter=cour.reduce((s,p)=>s+interactions(p),0);
     const ev=prec.length?Math.round((cour.length-prec.length)*100/prec.length):null;
     const themes={};cour.forEach(p=>{if(p.theme)themes[p.theme]=(themes[p.theme]||0)+1});
