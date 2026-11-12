@@ -106,10 +106,10 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .marque-active{display:flex;align-items:center;gap:8px;font-size:.9rem}
 .marque-active b{font-weight:800}
 .logos-marques{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
-.logos-marques button{width:44px;height:44px;padding:4px;border-radius:10px;background:#fff;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;opacity:.6;transition:opacity .15s,border-color .15s}
-.logos-marques button:hover{opacity:1}
-.logos-marques button[aria-pressed=true]{opacity:1;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-.logos-marques img{max-width:100%;max-height:100%;object-fit:contain}
+.logos-marques button{height:48px;min-width:48px;max-width:130px;padding:5px 9px;border-radius:9px;background:#fff;border:2px solid #fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .15s,box-shadow .15s}
+.logos-marques button:hover{transform:translateY(-1px)}
+.logos-marques button[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
+.logos-marques img{max-width:110px;max-height:34px;width:auto;height:auto;object-fit:contain;display:block}
 .logos-marques span{font-weight:800;color:#222;font-size:.9rem}
 .boutons-marques{display:flex;flex-wrap:wrap;gap:6px}
 .boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
@@ -129,8 +129,9 @@ nav.onglets{border-bottom:1px solid var(--line);background:var(--bg)}
   header.haut .compte .btn{padding:4px 8px;font-size:.75rem;white-space:nowrap}
   .barre-marques .wrap{flex-wrap:wrap;gap:4px;padding-block:5px}
   .barre-marques .small{display:none}
-  .logos-marques{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:0}
-  .logos-marques button{width:34px;height:34px;padding:3px;border-radius:8px;flex:0 0 auto}
+  .logos-marques{gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:0;padding:4px}
+  .logos-marques button{height:38px;min-width:38px;max-width:96px;padding:3px 6px;border-radius:7px;flex:0 0 auto}
+  .logos-marques img{max-width:82px;max-height:28px}
   .marque-active{font-size:.8rem}
   .passages,.choix-marque{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:4px}
   .passage{padding:1px 6px;font-size:.78rem;white-space:nowrap}
