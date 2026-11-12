@@ -310,6 +310,8 @@ label.fichier{display:inline-block;cursor:pointer;color:var(--fg)}
 .proposition{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--fg);border:1px dashed color-mix(in srgb,var(--accent) 60%,transparent);border-radius:14px;padding:3px 10px;font-size:.82rem;cursor:pointer}
 .proposition:hover{background:var(--accent);color:var(--on-accent)}
 .propositions{display:grid;gap:6px}
+.ligne-concsite{grid-template-columns:1fr 1fr auto}
+tr.ligne-alerte td{background:color-mix(in srgb,var(--neg) 10%,transparent)}
 .aide-requete{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
 .aide-requete summary{cursor:pointer;color:var(--accent);font-size:.88rem}
 .aide-requete ul{margin:6px 0 2px;padding-left:18px}
@@ -1118,6 +1120,48 @@ function propositionsLocales(nom,comptes){
 }
 
 // ---- Formulaire unique de création ou de modification d'une marque ----
+// lecture du site officiel (logo, comptes officiels, mots-clés) par la fonction serveur « lire-site »
+async function lireSite(corps){
+  const {data:{session}}=await SB.auth.getSession();
+  const r=await fetch(SB_URL+'/functions/v1/lire-site',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_CLE,Authorization:'Bearer '+session.access_token},body:JSON.stringify(corps)});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.erreur||('réponse '+r.status));return j;
+}
+const siteValide=u=>/^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(String(u||'').trim());
+// création : l'agence indique le nom et le site officiel de la marque, et ses concurrents ; le reste est préparé à partir du site
+async function admCreationMarque(quota){
+  const z=$('#admin-corps');
+  const blocC=()=>`<div class="ligne ligne-concsite"><input type="text" data-k="nom" placeholder="Nom du concurrent, ex. : MTN" maxlength="80" aria-label="Nom du concurrent"><input type="text" data-k="site" placeholder="Site officiel, ex. : www.mtn.ci" aria-label="Site officiel du concurrent"><button type="button" class="btn sec mini retirer" aria-label="Retirer ce concurrent">Retirer</button></div>`;
+  z.innerHTML=`<form class="fiche" id="f-creation" novalidate>
+    <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">Nouvelle marque</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
+      <p class="muted small">Indiquez le nom et le site officiel de la marque. La plateforme lit le site : elle récupère le logo pour les rapports, trouve les comptes officiels de la marque sur les réseaux et propose jusqu’à 8 lignes de mots-clés à partir du nom de la marque et de ses principaux produits. Tout reste modifiable ensuite.</p>
+      <div class="row"><label>Nom de la marque<input type="text" id="c-nom" maxlength="80" required placeholder="Ex. : Orange"></label><label>Site officiel<input type="text" id="c-site" required placeholder="Ex. : www.orange.ci"></label><label>Pays surveillé<input type="text" id="c-pays" value="Côte d'Ivoire" maxlength="60"></label></div></div>
+    <div class="bloc"><h3>Concurrents à suivre</h3><p class="muted small">Trois concurrents au plus. Indiquez leur nom et leur site officiel : leurs pages officielles sont trouvées sur leur site.</p>
+      <div class="lignes" id="c-conc" data-max="3">${blocC()}</div><button type="button" class="btn sec mini" id="c-ajout">+ Ajouter un concurrent</button></div>
+    <div class="barre-enregistrer"><span class="small muted" id="c-etat">La préparation prend une trentaine de secondes.</span><button class="btn" type="submit" id="c-creer">Créer la marque</button></div></form>`;
+  $('#c-ajout').onclick=()=>{const l=$('#c-conc');if(l.children.length>=3)return toast('Au plus 3 concurrents par marque.',true);l.insertAdjacentHTML('beforeend',blocC());l.lastElementChild.querySelector('input').focus()};
+  $('#c-conc').addEventListener('click',e=>{const b=e.target.closest('.retirer');if(!b)return;const l=b.closest('.ligne');if($('#c-conc').children.length>1)l.remove();else l.querySelectorAll('input').forEach(i=>i.value='')});
+  $('#f-creation').onsubmit=async e=>{
+    e.preventDefault();
+    const nom=$('#c-nom').value.trim(),site=$('#c-site').value.trim(),pays=$('#c-pays').value.trim();
+    if(nom.length<2){$('#c-nom').focus();return toast('Indiquez le nom de la marque.',true)}
+    if(!siteValide(site)){$('#c-site').focus();return toast('Indiquez l’adresse du site officiel, ex. : www.marque.com',true)}
+    const conc=lireLignes($('#c-conc')).filter(o=>o.nom||o.site);
+    if(conc.some(o=>!o.nom))return toast('Indiquez le nom de chaque concurrent.',true);
+    if(conc.some(o=>o.site&&!siteValide(o.site)))return toast('L’adresse du site d’un concurrent n’est pas valide.',true);
+    const b=$('#c-creer');b.disabled=true;$('#c-etat').textContent='Lecture du site de la marque et des concurrents…';
+    let l;try{l=await lireSite({nom,site,pays,concurrents:conc})}catch(err){b.disabled=false;$('#c-etat').textContent='';return toast('Lecture du site impossible : '+err.message,true)}
+    const p={client_id:null,nom,pays,site_web:l.site||site,logo_url:l.logo_url||'',mots_cles:(l.mots||[]).map(composer).filter(Boolean).slice(0,8),
+      exclusions:[],comptes_officiels:l.comptes||[],haters:[],flux_rss:[],termes:[],
+      concurrents:conc.map((o,i)=>({id:null,nom:o.nom,site_web:(l.concurrents||[])[i]?.site||o.site||'',mots_cles:[],comptes:(l.concurrents||[])[i]?.comptes||[]}))};
+    $('#c-etat').textContent='Création de la marque…';
+    const {data,error}=await SB.rpc('enregistrer_marque',{p});
+    b.disabled=false;
+    if(error){$('#c-etat').textContent='';return toast(error.code==='23505'?'Une marque porte déjà ce nom.':error.message,true)}
+    S.preparation={client:Number(data),avertissements:l.avertissements||[],methode:l.methode};
+    toast('Marque créée et préparée à partir de son site : vérifiez la fiche');
+    await chargerReferentiel();S.admin='edition';S.adminMarque=Number(data);vueAdmin();
+  };
+}
 async function admFormMarque(clientId){
   const z=$('#admin-corps');z.innerHTML='<p class="muted">Chargement…</p>';
   await chargerReferentiel();
@@ -1126,23 +1170,32 @@ async function admFormMarque(clientId){
   if(clientId&&!c){S.admin='marques';return vueAdmin()}
   if(!c&&quota!=null&&S.clients.length>=quota){
     z.innerHTML=`<div class="bloc"><h3>Création de marque</h3><p class="muted">Votre formule permet de suivre ${quota} marques et elles sont toutes utilisées. Suspendez ou supprimez une marque dans « Marques suivies » pour en créer une autre.</p></div>`;return}
+  if(!c)return admCreationMarque(quota);
   const f=c?(S.marques.find(m=>m.client_id===c.id)||{}):{};
   let hat=[],conc=[],ter=[],sug=[];
   if(c){const r=await Promise.all([SB.from('haters').select('*').eq('client_id',c.id).order('nom'),SB.from('concurrents').select('*').eq('client_id',c.id).order('nom'),
       SB.from('termes_surveilles').select('terme').eq('client_id',c.id).order('terme'),SB.from('suggestions_mots_cles').select('terme,occurrences').eq('client_id',c.id).order('occurrences',{ascending:false}).limit(15)]);
     [hat,conc,ter,sug]=r.map(x=>x.data||[])}
   let logo=c?.logo_url||'';
-  const blocConc=k=>`<div class="concurrent" data-id="${k?.id||''}"><div class="row"><label>Nom du concurrent<input type="text" data-c="nom" value="${esc(k?.nom||'')}" maxlength="80"></label><button type="button" class="btn danger mini retirer-conc">Retirer ce concurrent</button></div>
+  const {data:bilan}=c?await SB.rpc('bilan_mots_cles',{p_client:c.id}):{data:[]};
+  const prep=S.preparation&&S.preparation.client===c?.id?S.preparation:null;S.preparation=null;
+  const blocConc=k=>`<div class="concurrent" data-id="${k?.id||''}"><div class="row"><label>Nom du concurrent<input type="text" data-c="nom" value="${esc(k?.nom||'')}" maxlength="80"></label><label>Site officiel<input type="text" data-c="site" value="${esc(k?.site_web||'')}" placeholder="Ex. : www.mtn.ci"></label><button type="button" class="btn danger mini retirer-conc">Retirer ce concurrent</button></div>
       <div class="sous-titre">Pages officielles du concurrent</div>${zoneLignes('compte',k?.comptes||[],'Ajouter une page officielle')}</div>`;
   const ctl=f.controle||{};
-  z.innerHTML=`${c&&!f.point_zero_le&&ctl.etat==='à corriger'?`<div class="bloc alerte-ctl"><h3>Contrôle qualité : à corriger avant le premier tour</h3><ul class="pb">${(ctl.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="small muted" style="margin:0">Corrigez puis enregistrez : le contrôle et le premier tour sont relancés aussitôt.</p></div>`:''}<form class="fiche" id="f-marque" novalidate>
+  const alertes=(bilan||[]).filter(x=>x.etat==='aucun résultat'||x.etat==='trop de bruit');
+  const libEtat={'bon':'Fonctionne','en observation':'En observation','aucun résultat':'Ne remonte rien','trop de bruit':'Trop de bruit'};
+  const conseil={'aucun résultat':'Aucune publication en 3 jours : élargissez la ligne (connecteur OU, autre orthographe, nom du produit plus court).','trop de bruit':'Moins d’une publication sur cinq parle vraiment de la marque : resserrez la ligne (connecteur ET, mot à exclure).'};
+  const tableBilan=(bilan||[]).length?`<div class="sous-titre">Fonctionnement des lignes sur 3 jours</div><div class="defile"><table class="tab"><thead><tr><th>Ligne</th><th class="n">Trouvées</th><th class="n">Retenues</th><th>État</th></tr></thead><tbody>${bilan.map(x=>`<tr class="${x.etat==='aucun résultat'||x.etat==='trop de bruit'?'ligne-alerte':''}"><td><code>${esc(x.mot)}</code></td><td class="n num">${x.trouvees}</td><td class="n num">${x.retenues}</td><td>${esc(libEtat[x.etat]||x.etat)}${conseil[x.etat]?`<div class="small muted">${esc(conseil[x.etat])}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'';
+  z.innerHTML=`${prep?`<div class="bloc"><h3>Fiche préparée à partir du site</h3><p class="small muted" style="margin:0">Logo, comptes officiels et lignes de mots-clés ont été proposés à partir du site de la marque. Vérifiez-les, corrigez si besoin puis enregistrez.</p>${(prep.avertissements||[]).length?`<ul class="pb">${prep.avertissements.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</div>`:''}${alertes.length?`<div class="bloc alerte-ctl"><h3>${alertes.length} ligne${alertes.length>1?'s':''} de mots-clés à revoir</h3><ul class="pb">${alertes.map(x=>`<li><code>${esc(x.mot)}</code> : ${esc(conseil[x.etat])}</li>`).join('')}</ul></div>`:''}${c&&!f.point_zero_le&&ctl.etat==='à corriger'?`<div class="bloc alerte-ctl"><h3>Contrôle qualité : à corriger avant le premier tour</h3><ul class="pb">${(ctl.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="small muted" style="margin:0">Corrigez puis enregistrez : le contrôle et le premier tour sont relancés aussitôt.</p></div>`:''}<form class="fiche" id="f-marque" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">${c?esc(c.nom):'Nouvelle marque'}</h3>${c?'<button class="btn sec mini" id="retour" type="button">Toutes les marques</button>':quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
       <div class="identite">
         <div class="logo-zone"><div class="logo-apercu" id="logo-apercu">${logo?`<img src="${esc(logo)}" alt="Logo de la marque">`:'<span>Logo</span>'}</div>
           <label class="btn sec mini fichier">Choisir le logo<input type="file" id="logo-fichier" accept="image/png,image/jpeg,image/webp" hidden></label>
           <span class="small muted">PNG, JPEG ou WebP, 2 Mo au plus. Il figure sur les rapports.</span></div>
-        <div class="identite-champs"><div class="row"><label>Nom de la marque<input type="text" id="m-nom" value="${esc(c?.nom||'')}" maxlength="80" required></label><label>Secteur<input type="text" id="m-secteur" value="${esc(c?.secteur||'')}" maxlength="80"></label><label>Pays surveillé<input type="text" id="m-pays" value="${esc(f.pays||"Côte d'Ivoire")}" maxlength="60"></label><label>Couleur de la marque (rapports)<input type="color" id="m-couleur" value="${esc(c?.couleur||'#F77F00')}"></label></div></div>
+        <div class="identite-champs"><div class="row"><label>Nom de la marque<input type="text" id="m-nom" value="${esc(c?.nom||'')}" maxlength="80" required></label><label>Secteur<input type="text" id="m-secteur" value="${esc(c?.secteur||'')}" maxlength="80"></label><label>Site officiel<input type="text" id="m-site" value="${esc(f.site_web||'')}" placeholder="Ex. : www.orange.ci"></label><label>Pays surveillé<input type="text" id="m-pays" value="${esc(f.pays||"Côte d'Ivoire")}" maxlength="60"></label><label>Couleur de la marque (rapports)<input type="color" id="m-couleur" value="${esc(c?.couleur||'#F77F00')}"></label></div></div>
       </div></div>
+
+    <div class="bloc"><div class="entete-vue"><h3>Préparation à partir du site</h3><button type="button" class="btn sec mini" id="relire-site">Relire le site officiel</button></div><p class="muted small" style="margin:0">Relit le site de la marque pour proposer à nouveau le logo, les comptes officiels et les lignes de mots-clés. Les propositions remplacent les champs ci-dessous ; rien n’est enregistré avant « Enregistrer les modifications ».</p></div>
 
     <div class="bloc"><h3>Comptes officiels de la marque</h3><p class="muted small">Leurs publications alimentent l’onglet Canaux officiels et servent à proposer des mots-clés.</p>
       <div id="z-officiels">${zoneLignes('compte',f.comptes_officiels||[],'Ajouter un compte officiel')}</div></div>
@@ -1151,7 +1204,8 @@ async function admFormMarque(clientId){
       <details class="aide-requete"><summary>Comment remplir une ligne</summary>
         <p class="small">Chaque ligne se lit : <b>premier mot-clé</b> · <b>connecteur</b> · <b>second mot-clé</b>. Les accents et majuscules sont ignorés ; plusieurs mots dans une case forment une expression exacte.</p>
         <ul class="small"><li><b>—</b> : le premier mot-clé seul (ex. <code>Orange CI</code>)</li><li><b>ET</b> : les deux à la fois (ex. <code>Orange Money</code> ET <code>frais OU arnaque</code>)</li><li><b>OU</b> : l’un ou l’autre (ex. <code>#OrangeEstLà</code> OU <code>#OrangeCI</code>)</li><li><b>SAUF</b> : le premier sans le second (ex. <code>Orange</code> SAUF <code>jus d'orange</code>)</li></ul></details>
-      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter un mot-clé')}</div>
+      <p class="muted small" style="margin:0">Huit lignes au plus. Une ligne = premier mot-clé, connecteur, second mot-clé (ex. <code>Orange</code> ET <code>Côte d'Ivoire</code>).</p>
+      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter une ligne de mots-clés',8)}</div>${tableBilan}
       <div class="propositions" id="propositions"></div>
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
       <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
@@ -1162,7 +1216,7 @@ async function admFormMarque(clientId){
     <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d’un hater sur la marque devient un point d’attention.</p>
       <div id="z-haters">${zoneLignes('hater',hat.map(h=>({reseau:h.reseau,nom:h.nom,url:h.url||''})),'Ajouter un hater')}</div></div>
 
-    <div class="bloc"><h3>Concurrents</h3><p class="muted small">Seules leurs pages officielles sont suivies. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
+    <div class="bloc"><h3>Concurrents</h3><p class="muted small">Trois concurrents au plus. Seules leurs pages officielles sont suivies ; si vous indiquez leur site, leurs pages y sont trouvées à l’enregistrement. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
       <div id="z-conc">${conc.map(blocConc).join('')}</div><button type="button" class="btn sec mini" id="ajout-conc">+ Ajouter un concurrent</button></div>
 
     <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Un terme trouvé dans une publication déclenche une alerte immédiate. Dix termes au plus.</p>
@@ -1176,8 +1230,19 @@ async function admFormMarque(clientId){
   form.addEventListener('input',e=>{if(e.target.id!=='logo-fichier')changer()});
   form.addEventListener('change',e=>{if(e.target.tagName==='SELECT')changer()});
   if($('#retour'))$('#retour').onclick=()=>{if(!quitterSansEnregistrer())return;S.admin='marques';vueAdmin()};
-  $('#ajout-conc').onclick=()=>{$('#z-conc').insertAdjacentHTML('beforeend',blocConc(null));$('#z-conc').lastElementChild.querySelector('input').focus();changer()};
+  $('#ajout-conc').onclick=()=>{if($('#z-conc').querySelectorAll('.concurrent').length>=3)return toast('Au plus 3 concurrents par marque.',true);$('#z-conc').insertAdjacentHTML('beforeend',blocConc(null));$('#z-conc').lastElementChild.querySelector('input').focus();changer()};
   $('#z-conc').addEventListener('click',e=>{const b=e.target.closest('.retirer-conc');if(b){b.closest('.concurrent').remove();changer()}});
+
+  $('#relire-site').onclick=async()=>{
+    const site=$('#m-site').value.trim();if(!siteValide(site)){$('#m-site').focus();return toast('Indiquez l’adresse du site officiel.',true)}
+    const bt=$('#relire-site');bt.disabled=true;bt.textContent='Lecture du site…';
+    try{const l=await lireSite({nom:$('#m-nom').value.trim(),site,pays:$('#m-pays').value.trim()});
+      if(l.logo_url){logo=l.logo_url;$('#logo-apercu').innerHTML=`<img src="${esc(logo)}" alt="Logo de la marque">`}
+      if((l.comptes||[]).length)$('#z-officiels').innerHTML=zoneLignes('compte',l.comptes,'Ajouter un compte officiel');
+      if((l.mots||[]).length)$('#z-mots').innerHTML=zoneLignes('mot',l.mots.slice(0,8),'Ajouter une ligne de mots-clés',8);
+      changer();toast('Propositions reprises du site : vérifiez puis enregistrez'+((l.avertissements||[]).length?' — '+l.avertissements.join(' '):''));
+    }catch(err){toast('Lecture du site impossible : '+err.message,true)}
+    finally{bt.disabled=false;bt.textContent='Relire le site officiel'}};
 
   // logo : envoyé au stockage dès qu'il est choisi, enregistré avec la marque
   $('#logo-fichier').onchange=async e=>{
@@ -1214,18 +1279,26 @@ async function admFormMarque(clientId){
     const incomplet=lignesMots.find(o=>(o.op&&(!o.a||!o.b))||(!o.op&&o.b));
     if(incomplet)return toast(incomplet.op?`Connecteur ${incomplet.op} : renseignez les deux mots-clés de la ligne.`:'Choisissez un connecteur (ET, OU, SAUF) entre les deux mots-clés.',true);
     const mots=lignesMots.map(composer).filter(Boolean);
+    if(mots.length>8)return toast('Au plus 8 lignes de mots-clés par marque.',true);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
-      mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
-    if(concurrents.some(k=>!k.nom&&k.comptes.length))return toast('Indiquez le nom de chaque concurrent.',true);
-    if(concurrents.some(k=>k.nom&&!k.comptes.length))return toast('Ajoutez au moins une page officielle pour chaque concurrent.',true);
+      site_web:b.querySelector('[data-c=site]').value.trim(),mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
+    if(concurrents.filter(k=>k.nom).length>3)return toast('Au plus 3 concurrents par marque.',true);
+    if(concurrents.some(k=>!k.nom&&(k.comptes.length||k.site_web)))return toast('Indiquez le nom de chaque concurrent.',true);
+    if(concurrents.some(k=>k.site_web&&!siteValide(k.site_web)))return toast('L’adresse du site d’un concurrent n’est pas valide.',true);
+    // concurrents sans page officielle : pages cherchées sur leur site
+    const aLire=concurrents.filter(k=>k.nom&&!k.comptes.length&&k.site_web);
+    if(aLire.length){$('#etat-fiche').textContent='Recherche des pages officielles des concurrents…';
+      try{const l=await lireSite({concurrents:aLire.map(k=>({nom:k.nom,site:k.site_web}))});aLire.forEach((k,i)=>{k.comptes=(l.concurrents||[])[i]?.comptes||[]})}catch{/* saisie manuelle */}}
+    if(concurrents.some(k=>k.nom&&!k.comptes.length))return toast('Ajoutez au moins une page officielle pour chaque concurrent (aucune trouvée sur son site).',true);
     const haters=lireLignes($('#z-haters .lignes')).filter(o=>o.nom||o.url);
     if(haters.some(h=>!h.nom))return toast('Indiquez le nom de chaque hater.',true);
     const comptes=lireLignes($('#z-officiels .lignes')).filter(o=>o.url);
     if(!mots.length&&!comptes.length)return toast('Ajoutez au moins un mot-clé ou un compte officiel.',true);
     const flux=lireLignes($('#z-rss .lignes')).filter(o=>o.url||o.nom);
     if(flux.some(o=>!/^https:\/\/\S+$/i.test(o.url)))return toast('Chaque flux RSS doit avoir une adresse qui commence par https://',true);
-    const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),logo_url:logo,couleur:$('#m-couleur').value,
+    const site=$('#m-site').value.trim();if(site&&!siteValide(site))return toast('L’adresse du site officiel n’est pas valide.',true);
+    const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),site_web:site,logo_url:logo,couleur:$('#m-couleur').value,
       mots_cles:mots,exclusions:lireLignes($('#z-excl .lignes')).map(o=>o.v).filter(Boolean),comptes_officiels:comptes,haters,
       flux_rss:flux.map(o=>({nom:o.nom||'Flux RSS',url:o.url})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
     $('#b-enregistrer').disabled=true;
