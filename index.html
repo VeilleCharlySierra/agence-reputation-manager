@@ -89,7 +89,7 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .marque img{height:38px;max-width:160px;object-fit:contain}
 .marque h1{font-size:1.15rem;line-height:1.1}
 .marque .agence{font-size:.75rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
-.compte{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
+.compte{margin-left:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
 .compte select{width:auto;padding:5px 8px}
 /* Choix de la marque : un bouton par marque visible */
 .barre-marques{background:var(--accent);color:var(--on-accent)}
@@ -103,6 +103,14 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .passage.prochain{background:var(--on-accent);color:var(--accent);font-weight:800}
 .passage.prochain i{border-color:var(--accent);background:var(--accent)}
 .barre-marques .small{font-weight:600}
+.marque-active{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.marque-active b{font-weight:800}
+.logos-marques{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.logos-marques button{width:44px;height:44px;padding:4px;border-radius:10px;background:#fff;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;opacity:.6;transition:opacity .15s,border-color .15s}
+.logos-marques button:hover{opacity:1}
+.logos-marques button[aria-pressed=true]{opacity:1;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.logos-marques img{max-width:100%;max-height:100%;object-fit:contain}
+.logos-marques span{font-weight:800;color:#222;font-size:.9rem}
 .boutons-marques{display:flex;flex-wrap:wrap;gap:6px}
 .boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
 .boutons-marques button img{width:18px;height:18px;object-fit:contain;background:#fff;border-radius:3px}
@@ -121,6 +129,9 @@ nav.onglets{border-bottom:1px solid var(--line);background:var(--bg)}
   header.haut .compte .btn{padding:4px 8px;font-size:.75rem;white-space:nowrap}
   .barre-marques .wrap{flex-wrap:wrap;gap:4px;padding-block:5px}
   .barre-marques .small{display:none}
+  .logos-marques{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:0}
+  .logos-marques button{width:34px;height:34px;padding:3px;border-radius:8px;flex:0 0 auto}
+  .marque-active{font-size:.8rem}
   .passages,.choix-marque{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:4px}
   .passage{padding:1px 6px;font-size:.78rem;white-space:nowrap}
   .boutons-marques{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
@@ -515,6 +526,7 @@ body.rapport-ouvert{overflow:hidden}
         <img id="h-logo" alt="" hidden>
         <div><h1 id="h-titre">Reputation Manager</h1><div class="agence" id="h-agence"></div></div>
       </div>
+      <div class="logos-marques" id="logos-marques" role="group" aria-label="Marques suivies"></div>
       <div class="compte">
         <span id="h-moi" class="muted"></span>
         <button class="btn sec mini" id="b-compte" type="button">Mon compte</button>
@@ -522,7 +534,7 @@ body.rapport-ouvert{overflow:hidden}
       </div>
     </div>
   </header>
-  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><div class="passages" id="passages" aria-label="Passages du jour"></div><div class="choix-marque"><span class="small">Marque :</span><div class="boutons-marques" id="sel-client" role="group" aria-label="Choix de la marque"></div></div></div></div>
+  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><div class="passages" id="passages" aria-label="Passages du jour"></div><div class="marque-active" id="marque-active"></div></div></div>
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
   </div>
   <main class="wrap" id="contenu"></main>
@@ -540,7 +552,7 @@ const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','use
 const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 // Passages de collecte (heure UTC = heure d'Abidjan), fixés par la formule de l'agence
-const PASSAGES=['05:35','11:35','17:35','23:35'];
+const PASSAGES=['02:35','05:35','08:35','11:35','14:35','17:35','20:35','23:35'];
 const IMAGE={nom_plateforme:'Totem Reputation Manager',nom_agence:'Totem Experience',couleur_principale:'#C6DD1F',couleur_fond:'#111111',logo_url:'img/logo-totem.png',motif_url:'img/motif-tx.png'};
 
 const $=s=>document.querySelector(s);
@@ -607,12 +619,18 @@ function dessinerPassages(){
   let prochain=mins.findIndex(x=>x>m);if(prochain<0)prochain=0;
   $('#passages').innerHTML=`<span class="small">Passages du jour :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
     return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochain passage':etat==='fait'?'Passage effectué':'Passage à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
+  // petit écran : la liste défile jusqu'au prochain passage
+  const pr=$('#passages .prochain');if(pr)$('#passages').scrollLeft=Math.max(0,pr.offsetLeft-$('#passages').offsetLeft-40);
 }
 setInterval(()=>{if(!$('#ecran-app').hidden)dessinerPassages()},60000);
 function dessinerMarques(){
   dessinerPassages();
-  const z=$('#sel-client');
-  z.innerHTML=S.clients.map(x=>`<button type="button" data-c="${x.id}" aria-pressed="${String(x.id)===String(S.client)}">${x.logo_url?`<img src="${esc(x.logo_url)}" alt="">`:''}${esc(x.nom)}</button>`).join('');
+  // un logo par marque suivie par la personne connectée (la base ne renvoie que celles-là) ; un clic change de marque
+  const z=$('#logos-marques');
+  const initiales=n=>String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  z.innerHTML=S.clients.map(x=>`<button type="button" data-c="${x.id}" aria-pressed="${String(x.id)===String(S.client)}" title="${esc(x.nom)}" aria-label="${esc(x.nom)}">${x.logo_url?`<img src="${esc(x.logo_url)}" alt="">`:`<span>${esc(initiales(x.nom))}</span>`}</button>`).join('');
+  const active=S.clients.find(x=>String(x.id)===String(S.client));
+  $('#marque-active').innerHTML=active?`<span class="small">Marque active :</span><b>${esc(active.nom)}</b>`:'';
   $('#barre-marques').hidden=S.clients.length<1;
   z.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
     if(String(S.client)===b.dataset.c||!quitterSansEnregistrer())return;
