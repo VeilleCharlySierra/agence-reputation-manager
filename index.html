@@ -307,7 +307,7 @@ label.fichier{display:inline-block;cursor:pointer;color:var(--fg)}
 .ligne-mot{grid-template-columns:1fr 130px 1fr auto}
 .ligne-mot select{font-weight:700;text-align:center}
 .ligne-compte{grid-template-columns:130px 1fr auto}
-.ligne-rss{grid-template-columns:200px 1fr auto}
+.ligne-flux{grid-template-columns:1.6fr 1fr auto auto}.case-hater{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:.85rem}.case-hater input{width:auto;min-height:0}
 .mini-captures{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.mini-captures img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
 .tri{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:6px}.tri label{display:inline-flex;gap:4px;align-items:center}
 .sous-ligne td{border-top:0;padding-top:2px}
@@ -342,7 +342,7 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:.85em}
   .identite{grid-template-columns:1fr}
   .ligne-compte{grid-template-columns:1fr auto}.ligne-compte select{grid-column:1/-1}
   .ligne-mot{grid-template-columns:1fr auto}.ligne-mot>*{grid-column:1}.ligne-mot .retirer{grid-column:2;grid-row:1/4}
-  .ligne-hater{grid-template-columns:1fr auto}.ligne-hater select,.ligne-hater input{grid-column:1}.ligne-hater .retirer{grid-column:2;grid-row:1/4}
+  .ligne-flux{grid-template-columns:1fr auto}.ligne-flux input[type=text],.ligne-flux .case-hater{grid-column:1}.ligne-flux .retirer{grid-column:2;grid-row:1/4}.ligne-hater{grid-template-columns:1fr auto}.ligne-hater select,.ligne-hater input{grid-column:1}.ligne-hater .retirer{grid-column:2;grid-row:1/4}
   .crit{grid-template-columns:1fr}.crit>span{grid-column:1}
 }
 
@@ -1067,16 +1067,21 @@ const MODELES={
   excl:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : jus d'orange" maxlength="120" aria-label="Mot à exclure">`},
   terme:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : boycott" maxlength="60" aria-label="Terme en surveillance">`},
   compte:{vide:{reseau:'Facebook',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="url" value="${esc(o.url)}" placeholder="Adresse du compte, ex. https://facebook.com/marque" aria-label="Adresse du compte">`},
-  rss:{vide:{nom:'',url:''},html:o=>`<input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du flux, ex. : Presse Abidjan" maxlength="80" aria-label="Nom du flux"><input type="url" data-k="url" value="${esc(o.url)}" placeholder="Adresse du flux, ex. https://site.com/feed.xml" aria-label="Adresse du flux">`},
+  flux:{vide:{url:'',nom:'',hater:false},html:o=>`<input type="text" data-k="url" value="${esc(o.url)}" placeholder="Lien de la page, du compte, du groupe ou du site, ex. https://facebook.com/page" aria-label="Lien à suivre"><input type="text" data-k="nom" value="${esc(o.nom||'')}" placeholder="Nom (facultatif)" maxlength="80" aria-label="Nom"><label class="case-hater"><input type="checkbox" data-k="hater" ${o.hater?'checked':''}> Hater</label>`},
   hater:{vide:{reseau:'Facebook',nom:'',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du profil" maxlength="120" aria-label="Nom du profil"><input type="text" data-k="url" value="${esc(o.url||'')}" placeholder="Adresse du profil" aria-label="Adresse du profil">`}
 };
+function reseauDe(u){u=String(u||'');return /facebook\.com|fb\.com|fb\.watch/i.test(u)?'Facebook':/tiktok\.com/i.test(u)?'TikTok':/(\/\/|\.)(x|twitter)\.com/i.test(u)?'X':/instagram\.com/i.test(u)?'Instagram':/youtube\.com|youtu\.be/i.test(u)?'YouTube':/linkedin\.com/i.test(u)?'LinkedIn':'Web'}
+function nomDuLien(u){try{const x=new URL(u);const seg=x.pathname.split('/').filter(Boolean).filter(t=>!/^(groups|pages|channel|c|user|in|company|profile\.php)$/i.test(t));return (seg[0]||x.hostname.replace(/^www\./,'')).replace(/^@/,'')}catch{return u}}
+// flux à suivre : flux enregistrés, plus les anciens haters qui n'y figurent pas encore
+function fluxSuivis(flux,hat){const l=(flux||[]).map(o=>({url:o.url,nom:o.nom||'',hater:!!o.hater}));
+  for(const h of (hat||[]))if(h.url&&!l.some(o=>o.url===h.url))l.push({url:h.url,nom:h.nom||'',hater:true});return l}
 function ligne(type,o){return `<div class="ligne ligne-${type}">${MODELES[type].html(o||MODELES[type].vide)}<button type="button" class="btn sec mini retirer" aria-label="Retirer cette ligne">Retirer</button></div>`}
 function zoneLignes(type,valeurs,ajout,max){
   const v=(valeurs&&valeurs.length)?valeurs:[MODELES[type].vide];
   return `<div class="lignes" data-type="${type}" ${max?`data-max="${max}"`:''}>${v.map(o=>ligne(type,o)).join('')}</div><button type="button" class="btn sec mini ajouter" data-type="${type}">+ ${ajout}</button>`;
 }
 function lireLignes(el){
-  return [...el.querySelectorAll(':scope > .ligne')].map(l=>{const o={};l.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.value.trim());return o});
+  return [...el.querySelectorAll(':scope > .ligne')].map(l=>{const o={};l.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.type==='checkbox'?i.checked:i.value.trim());return o});
 }
 function brancherLignes(racine,surChange){
   racine.addEventListener('click',e=>{
@@ -1239,11 +1244,8 @@ async function admFormMarque(clientId){
       <textarea id="m-excl" rows="3" placeholder="Ex. : jus d'orange, orange mécanique, Orange RDC" aria-label="Mots à exclure, séparés par des virgules">${esc((f.exclusions||[]).join(', '))}</textarea>
       <p class="muted small" style="margin:0">Séparez les mots par des virgules. 30 au plus.</p></div>
 
-    <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Sources supplémentaires à surveiller : un site d’actualité, une page ou un groupe qui publie un flux RSS (adresse en .xml). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
-      <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
-
-    <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d’un hater sur la marque devient un point d’attention.</p>
-      <div id="z-haters">${zoneLignes('hater',hat.map(h=>({reseau:h.reseau,nom:h.nom,url:h.url||''})),'Ajouter un hater')}</div></div>
+    <div class="bloc"><h3>Flux à suivre</h3><p class="muted small">Pages, comptes, groupes ou sites à lire à chaque passage, toutes les 3 heures (Facebook, X, TikTok, Instagram, YouTube ou site d’actualité). Collez simplement le lien : seules les publications de moins de 24 heures qui parlent de la marque sont retenues. Cochez « Hater » pour un compte hostile : chacune de ses publications sur la marque devient un point d’attention. Dix flux au plus.</p>
+      <div id="z-flux">${zoneLignes('flux',fluxSuivis(f.flux_rss,hat),'Ajouter un flux',10)}</div></div>
 
     <div class="bloc"><h3>Concurrents</h3><p class="muted small">Trois concurrents au plus. Seules leurs pages officielles sont suivies ; si vous indiquez leur site, leurs pages y sont trouvées à l’enregistrement. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
       <div id="z-conc">${conc.map(blocConc).join('')}</div><button type="button" class="btn sec mini" id="ajout-conc">+ Ajouter un concurrent</button></div>
@@ -1339,16 +1341,16 @@ async function admFormMarque(clientId){
     if(aLire.length){$('#etat-fiche').textContent='Recherche des pages officielles des concurrents…';
       try{const l=await lireSite({concurrents:aLire.map(k=>({nom:k.nom,site:k.site_web}))});aLire.forEach((k,i)=>{k.comptes=(l.concurrents||[])[i]?.comptes||[]})}catch{/* saisie manuelle */}}
     if(concurrents.some(k=>k.nom&&!k.comptes.length))return toast('Ajoutez au moins une page officielle pour chaque concurrent (aucune trouvée sur son site).',true);
-    const haters=lireLignes($('#z-haters .lignes')).filter(o=>o.nom||o.url);
-    if(haters.some(h=>!h.nom))return toast('Indiquez le nom de chaque hater.',true);
     const comptes=lireLignes($('#z-officiels .lignes')).filter(o=>o.url);
     if(!mots.length&&!comptes.length)return toast('Ajoutez au moins un mot-clé ou un compte officiel.',true);
-    const flux=lireLignes($('#z-rss .lignes')).filter(o=>o.url||o.nom);
-    if(flux.some(o=>!/^https:\/\/\S+$/i.test(o.url)))return toast('Chaque flux RSS doit avoir une adresse qui commence par https://',true);
+    const flux=lireLignes($('#z-flux .lignes')).filter(o=>o.url||o.nom).map(o=>({...o,url:/^https?:\/\//i.test(o.url)?o.url.replace(/^http:/i,'https:'):o.url?'https://'+o.url:''}));
+    if(flux.some(o=>!/^https:\/\/[^\s.]+\.\S+$/i.test(o.url)))return toast('Chaque flux doit avoir un lien valide (ex. https://facebook.com/page).',true);
+    if(flux.length>10)return toast('Au plus 10 flux à suivre par marque.',true);
+    const haters=flux.filter(o=>o.hater).map(o=>({reseau:reseauDe(o.url),nom:o.nom||nomDuLien(o.url),url:o.url}));
     const site=$('#m-site').value.trim();if(site&&!siteValide(site))return toast('L’adresse du site officiel n’est pas valide.',true);
     const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),site_web:site,logo_url:logo,couleur:c?.couleur||'#F77F00',
       mots_cles:mots,exclusions:excl,comptes_officiels:comptes,haters,
-      flux_rss:flux.map(o=>({nom:o.nom||'Flux RSS',url:o.url})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
+      flux_rss:flux.map(o=>({nom:o.nom||nomDuLien(o.url),url:o.url,hater:!!o.hater,reseau:reseauDe(o.url)})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
     $('#b-enregistrer').disabled=true;
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     $('#b-enregistrer').disabled=false;
