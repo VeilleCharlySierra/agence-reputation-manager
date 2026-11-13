@@ -1236,7 +1236,8 @@ async function admFormMarque(clientId){
       <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter une ligne de mots-clés',5)}</div>${tableBilan}
       <div class="propositions" id="propositions"></div>
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
-      <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
+      <textarea id="m-excl" rows="3" placeholder="Ex. : jus d'orange, orange mécanique, Orange RDC" aria-label="Mots à exclure, séparés par des virgules">${esc((f.exclusions||[]).join(', '))}</textarea>
+      <p class="muted small" style="margin:0">Séparez les mots par des virgules. 50 au plus.</p></div>
 
     <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
       <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
@@ -1325,6 +1326,8 @@ async function admFormMarque(clientId){
     if(incomplet)return toast(incomplet.op?`Connecteur ${incomplet.op} : renseignez les deux mots-clés de la ligne.`:'Choisissez un connecteur (ET, OU, SAUF) entre les deux mots-clés.',true);
     const mots=lignesMots.map(composer).filter(Boolean);
     if(mots.length>5)return toast('Au plus 5 lignes de mots-clés par marque.',true);
+    const excl=[...new Set($('#m-excl').value.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean))];
+    if(excl.length>50)return toast('Au plus 50 mots à exclure par marque (vous en avez '+excl.length+').',true);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
       site_web:b.querySelector('[data-c=site]').value.trim(),mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
@@ -1344,7 +1347,7 @@ async function admFormMarque(clientId){
     if(flux.some(o=>!/^https:\/\/\S+$/i.test(o.url)))return toast('Chaque flux RSS doit avoir une adresse qui commence par https://',true);
     const site=$('#m-site').value.trim();if(site&&!siteValide(site))return toast('L’adresse du site officiel n’est pas valide.',true);
     const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),site_web:site,logo_url:logo,couleur:c?.couleur||'#F77F00',
-      mots_cles:mots,exclusions:lireLignes($('#z-excl .lignes')).map(o=>o.v).filter(Boolean),comptes_officiels:comptes,haters,
+      mots_cles:mots,exclusions:excl,comptes_officiels:comptes,haters,
       flux_rss:flux.map(o=>({nom:o.nom||'Flux RSS',url:o.url})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
     $('#b-enregistrer').disabled=true;
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
