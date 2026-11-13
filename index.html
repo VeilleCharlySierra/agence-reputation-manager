@@ -630,13 +630,13 @@ async function chargerReferentiel(){
 // hauteur de l'en-tête figé, pour placer les éléments collants en dessous
 new ResizeObserver(()=>document.documentElement.style.setProperty('--haut-entete',$('#entete-fixe').offsetHeight+'px')).observe($('#entete-fixe'));
 function dessinerPassages(){
+  // comme les outils de veille du marché : seule l'heure de la dernière mise à jour est indiquée, pas le calendrier des collectes
   const maintenant=new Date(),m=maintenant.getUTCHours()*60+maintenant.getUTCMinutes();
   const mins=PASSAGES.map(h=>{const [a,b]=h.split(':').map(Number);return a*60+b});
-  let prochain=mins.findIndex(x=>x>m);if(prochain<0)prochain=0;
-  $('#passages').innerHTML=`<span class="small">Mises à jour de la veille :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
-    return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochaine mise à jour':etat==='fait'?'Mise à jour effectuée':'Mise à jour à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
-  // petit écran : la liste défile jusqu'au prochain passage
-  const pr=$('#passages .prochain');if(pr)$('#passages').scrollLeft=Math.max(0,pr.offsetLeft-$('#passages').offsetLeft-40);
+  const passes=mins.filter(x=>x<=m);
+  const d=new Date(maintenant);if(passes.length){const x=Math.max(...passes);d.setUTCHours(Math.floor(x/60),x%60,0,0)}else{const x=Math.max(...mins);d.setUTCDate(d.getUTCDate()-1);d.setUTCHours(Math.floor(x/60),x%60,0,0)}
+  const jour=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',timeZone:'UTC'}),heure=String(d.getUTCHours()).padStart(2,'0')+'h'+String(d.getUTCMinutes()).padStart(2,'0');
+  $('#passages').innerHTML=`<span class="small">Veille à jour au ${jour} à ${heure} UTC</span>`;
 }
 setInterval(()=>{if(!$('#ecran-app').hidden)dessinerPassages()},60000);
 function dessinerMarques(){
