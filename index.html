@@ -1212,7 +1212,7 @@ async function admFormMarque(clientId){
   const conseil={'aucun résultat':'Aucune publication en 3 jours : élargissez la ligne (connecteur OU, autre orthographe, nom du produit plus court).','trop de bruit':'Moins d’une publication sur cinq parle vraiment de la marque : resserrez la ligne (connecteur ET, mot à exclure).'};
   const tableBilan=(bilan||[]).length?`<div class="sous-titre">Fonctionnement des lignes sur 3 jours</div><div class="defile"><table class="tab"><thead><tr><th>Ligne</th><th class="n">Trouvées</th><th class="n">Retenues</th><th>État</th></tr></thead><tbody>${bilan.map(x=>`<tr class="${x.etat==='aucun résultat'||x.etat==='trop de bruit'?'ligne-alerte':''}"><td><code>${esc(x.mot)}</code></td><td class="n num">${x.trouvees}</td><td class="n num">${x.retenues}</td><td>${esc(libEtat[x.etat]||x.etat)}${conseil[x.etat]?`<div class="small muted">${esc(conseil[x.etat])}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`:'';
   const pr=f.preparation||{};
-  const blocComplement=c&&pr.etat==='a_faire'?`<div class="bloc"><h3>Fiche en cours de complément</h3><p class="small muted" style="margin:0">Recherche des comptes officiels de la marque dans le pays, du logo et des meilleures lignes de mots-clés. Comptez quelques minutes : la fiche se met à jour d’elle-même et le premier tour de veille est relancé avec les réglages complétés.</p></div>`
+  const blocComplement=c&&pr.etat==='a_faire'?`<div class="bloc"><h3>Remplissage automatique en cours</h3><p class="small muted" style="margin:0">Recherche des comptes officiels de la marque dans le pays, du logo et des meilleures lignes de mots-clés. Comptez quelques minutes : la fiche se met à jour d’elle-même et le premier tour de veille est relancé avec les réglages complétés.</p></div>`
     :c&&pr.etat==='fait'&&pr.fait_le&&Date.now()-new Date(pr.fait_le).getTime()<864e5?`<div class="bloc"><h3>Fiche complétée</h3><p class="small muted" style="margin:0">Le ${esc(new Date(pr.fait_le).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}))} : comptes officiels, logo et lignes de mots-clés vérifiés. Tout reste modifiable ci-dessous.</p></div>`:'';
   z.innerHTML=`${blocComplement}${prep?`<div class="bloc"><h3>Fiche préparée à partir du site</h3><p class="small muted" style="margin:0">Logo, comptes officiels et lignes de mots-clés ont été proposés à partir du site de la marque. Vérifiez-les, corrigez si besoin puis enregistrez.</p>${(prep.avertissements||[]).length?`<ul class="pb">${prep.avertissements.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</div>`:''}${alertes.length?`<div class="bloc alerte-ctl"><h3>${alertes.length} ligne${alertes.length>1?'s':''} de mots-clés à revoir</h3><ul class="pb">${alertes.map(x=>`<li><code>${esc(x.mot)}</code> : ${esc(conseil[x.etat])}</li>`).join('')}</ul></div>`:''}${c&&!f.point_zero_le&&ctl.etat==='à corriger'?`<div class="bloc alerte-ctl"><h3>Contrôle qualité : à corriger avant le premier tour</h3><ul class="pb">${(ctl.problemes||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="small muted" style="margin:0">Corrigez puis enregistrez : le contrôle et le premier tour sont relancés aussitôt.</p></div>`:''}<form class="fiche" id="f-marque" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">${c?esc(c.nom):'Nouvelle marque'}</h3>${c?'<button class="btn sec mini" id="retour" type="button">Toutes les marques</button>':quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
@@ -1223,20 +1223,7 @@ async function admFormMarque(clientId){
         <div class="identite-champs"><div class="row"><label>Nom de la marque<input type="text" id="m-nom" value="${esc(c?.nom||'')}" maxlength="80" required></label><label>Secteur<input type="text" id="m-secteur" value="${esc(c?.secteur||'')}" maxlength="80"></label><label>Site officiel<input type="text" id="m-site" value="${esc(f.site_web||'')}" placeholder="Ex. : www.orange.ci"></label><label>Pays surveillé<input type="text" id="m-pays" value="${esc(f.pays||"Côte d'Ivoire")}" maxlength="60"></label><label>Couleur de la marque (rapports)<input type="color" id="m-couleur" value="${esc(c?.couleur||'#F77F00')}"></label></div></div>
       </div></div>
 
-    <div class="bloc"><div class="entete-vue"><h3>Préparation de la fiche</h3><div class="row" style="gap:.5rem"><button type="button" class="btn sec mini" id="relire-site">Relire le site officiel</button>${c?`<button type="button" class="btn sec mini" id="completer-fiche" ${pr.etat==='a_faire'?'disabled':''}>${pr.etat==='a_faire'?'Complément en cours…':'Compléter la fiche'}</button>`:''}</div></div><p class="muted small" style="margin:0">« Relire le site officiel » propose aussitôt le logo, les comptes et les lignes lus sur le site ; rien n’est enregistré avant « Enregistrer les modifications ». « Compléter la fiche » lance une recherche sur le web (comptes officiels du pays, logo, lignes de mots-clés) qui met la fiche à jour en quelques minutes.</p></div>
-
-    <div class="bloc"><h3>Comptes officiels de la marque</h3><p class="muted small">Leurs publications alimentent l’onglet Canaux officiels et servent à proposer des mots-clés.</p>
-      <div id="z-officiels">${zoneLignes('compte',f.comptes_officiels||[],'Ajouter un compte officiel')}</div></div>
-
-    <div class="bloc"><h3>Mots-clés de la veille</h3>
-      <details class="aide-requete"><summary>Comment remplir une ligne</summary>
-        <p class="small">Chaque ligne se lit : <b>premier mot-clé</b> · <b>connecteur</b> · <b>second mot-clé</b>. Les accents et majuscules sont ignorés ; plusieurs mots dans une case forment une expression exacte.</p>
-        <ul class="small"><li><b>—</b> : le premier mot-clé seul (ex. <code>Orange CI</code>)</li><li><b>ET</b> : les deux à la fois (ex. <code>Orange Money</code> ET <code>frais OU arnaque</code>)</li><li><b>OU</b> : l’un ou l’autre (ex. <code>#OrangeEstLà</code> OU <code>#OrangeCI</code>)</li><li><b>SAUF</b> : le premier sans le second (ex. <code>Orange</code> SAUF <code>jus d'orange</code>)</li></ul></details>
-      <p class="muted small" style="margin:0">Huit lignes au plus. Une ligne = premier mot-clé, connecteur, second mot-clé (ex. <code>Orange</code> ET <code>Côte d'Ivoire</code>).</p>
-      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter une ligne de mots-clés',8)}</div>${tableBilan}
-      <div class="propositions" id="propositions"></div>
-      <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
-      <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
+    <div class="bloc"><div class="entete-vue"><h3>Remplissage automatique</h3><div class="row" style="gap:.5rem">${c?`<button type="button" class="btn sec mini" id="completer-fiche" ${pr.etat==='a_faire'?'disabled':''}>${pr.etat==='a_faire'?'Remplissage en cours…':'Remplir la fiche'}</button>`:`<button type="button" class="btn sec mini" id="relire-site">Remplir la fiche</button>`}</div></div><p class="muted small" style="margin:0">${c?'Recherche le logo, les comptes officiels du pays et les mots-clés de la marque, puis met la fiche à jour toute seule en quelques minutes. Vous pouvez ensuite tout corriger à la main.':'Indiquez le nom et le site de la marque, puis cliquez : le logo, les comptes officiels et les mots-clés sont remplis à partir du site. Vérifiez, puis cliquez sur « Créer la marque » ; la fiche sera ensuite complétée automatiquement.'}</p></div>
 
     <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
       <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
@@ -1261,7 +1248,7 @@ async function admFormMarque(clientId){
   $('#ajout-conc').onclick=()=>{if($('#z-conc').querySelectorAll('.concurrent').length>=3)return toast('Au plus 3 concurrents par marque.',true);$('#z-conc').insertAdjacentHTML('beforeend',blocConc(null));$('#z-conc').lastElementChild.querySelector('input').focus();changer()};
   $('#z-conc').addEventListener('click',e=>{const b=e.target.closest('.retirer-conc');if(b){b.closest('.concurrent').remove();changer()}});
 
-  $('#relire-site').onclick=async()=>{
+  if($('#relire-site'))$('#relire-site').onclick=async()=>{
     const site=$('#m-site').value.trim();if(!siteValide(site)){$('#m-site').focus();return toast('Indiquez l’adresse du site officiel.',true)}
     const bt=$('#relire-site');bt.disabled=true;bt.textContent='Lecture du site…';
     try{const l=await lireSite({nom:$('#m-nom').value.trim(),site,pays:$('#m-pays').value.trim()});
@@ -1270,16 +1257,16 @@ async function admFormMarque(clientId){
       if((l.mots||[]).length)$('#z-mots').innerHTML=zoneLignes('mot',l.mots.slice(0,8),'Ajouter une ligne de mots-clés',8);
       changer();toast('Propositions reprises du site : vérifiez puis enregistrez'+((l.avertissements||[]).length?' — '+l.avertissements.join(' '):''));
     }catch(err){toast('Lecture du site impossible : '+err.message,true)}
-    finally{bt.disabled=false;bt.textContent='Relire le site officiel'}};
+    finally{bt.disabled=false;bt.textContent='Remplir la fiche'}};
   if($('#completer-fiche'))$('#completer-fiche').onclick=async()=>{
     const {error}=await SB.rpc('demander_preparation',{p_client:c.id});
     if(error)return toast('Demande impossible : '+error.message,true);
-    toast('Complément de la fiche lancé : quelques minutes.');await chargerReferentiel(true);admFormMarque(c.id)};
+    toast('Remplissage lancé : la fiche se met à jour dans quelques minutes.');await chargerReferentiel(true);admFormMarque(c.id)};
   // fiche en cours de préparation : rechargée chaque minute tant que la page est ouverte et sans modification en cours
   if(c&&pr.etat==='a_faire'){clearInterval(S.minuteriePrep);S.minuteriePrep=setInterval(async()=>{
     if(!document.body.contains($('#f-marque'))||S.modifie){clearInterval(S.minuteriePrep);return}
     const {data}=await SB.from('marques').select('preparation').eq('client_id',c.id).maybeSingle();
-    if(data?.preparation?.etat!=='a_faire'){clearInterval(S.minuteriePrep);await chargerReferentiel(true);admFormMarque(c.id);toast('Fiche complétée')}},60000)}
+    if(data?.preparation?.etat!=='a_faire'){clearInterval(S.minuteriePrep);await chargerReferentiel(true);admFormMarque(c.id);toast('Fiche remplie')}},60000)}
 
   // logo : envoyé au stockage dès qu'il est choisi, enregistré avec la marque
   $('#logo-fichier').onchange=async e=>{
