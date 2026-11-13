@@ -955,7 +955,7 @@ async function comparaison(z,conc){
 const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['groupes','Groupes Facebook'],['journal','Journal d’activité']];
 function vueAdmin(){
   // sections réservées à l'équipe de la plateforme (super administrateur et administrateur plateforme)
-  const RESERVEES=['remontees'];
+  const RESERVEES=['remontees','groupes','journal'];
   const sections=SECTIONS_ADMIN.filter(([k])=>estOperateur()||!RESERVEES.includes(k));
   if(!sections.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
   const actif=S.admin==='edition'?'marques':S.admin;
