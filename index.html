@@ -954,10 +954,13 @@ async function comparaison(z,conc){
 // ===== Administration =====
 const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['groupes','Groupes Facebook'],['journal','Journal d’activité']];
 function vueAdmin(){
-  if(!SECTIONS_ADMIN.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
+  // sections réservées à l'équipe de la plateforme (super administrateur et administrateur plateforme)
+  const RESERVEES=['remontees'];
+  const sections=SECTIONS_ADMIN.filter(([k])=>estOperateur()||!RESERVEES.includes(k));
+  if(!sections.some(([k])=>k===S.admin)&&S.admin!=='edition')S.admin='recap';
   const actif=S.admin==='edition'?'marques':S.admin;
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
-    <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${SECTIONS_ADMIN.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
+    <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{if(!quitterSansEnregistrer())return;S.admin=b.dataset.s;vueAdmin()});
   ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,groupes:admGroupes,journal:admJournal}[S.admin])();
 }
