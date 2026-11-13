@@ -349,7 +349,10 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:.85em}
 /* ===== Rapport (format A4, imprimable) ===== */
 body.rapport-ouvert{overflow:hidden}
 .rapport{position:fixed;inset:0;z-index:30;overflow:auto;background:#2a2a2a;padding-bottom:40px}
-.trois-rapports{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px}
+.trois-rapports{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;margin-bottom:14px;align-items:stretch}
+.col-rapports{display:grid;gap:14px;align-content:start}
+.carte-att .choix-att{flex:1;max-height:none;min-height:240px}
+@media (max-width:820px){.trois-rapports{grid-template-columns:1fr}.carte-att .choix-att{max-height:320px}}
 .carte-rapport{display:flex;flex-direction:column;gap:10px;margin:0}
 .carte-rapport h3{margin:0}.carte-rapport p{margin:0}
 .carte-rapport .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -1503,13 +1506,13 @@ async function vueRapports(){
   const auj=new Date().toISOString().slice(0,10),il_y_a=new Date(Date.now()-10*864e5).toISOString().slice(0,10);
   const choixMarque=id=>S.clients.length<2?'':`<select id="${id}" aria-label="Marque">${S.clients.map(x=>`<option value="${x.id}" ${String(x.id)===String(S.client)?'selected':''}>${esc(x.nom)}</option>`).join('')}</select>`;
   c.innerHTML=`<section class="vue"><div class="entete-vue"><h2>Rapports</h2></div>
-    ${S.clients.length?`<div class="trois-rapports">
+    ${S.clients.length?`<div class="trois-rapports"><div class="col-rapports">
       <div class="bloc carte-rapport"><h3>Rapport journalier</h3><p class="muted small">Publications des dernières 24 heures (période exacte indiquée dans le PDF) ; produit automatiquement chaque matin à 6h00 UTC.</p>
         <div class="row"><input type="date" id="rj-jour" value="${auj}" max="${auj}" aria-label="Date du rapport">${choixMarque('rj-marque')}<button class="btn" type="button" id="rj-btn">Télécharger le PDF</button></div></div>
       <div class="bloc carte-rapport"><h3>Rapport statistiques</h3><p class="muted small">Statistiques du tableau de bord sur la période${S.clients.length>1?' et la marque choisies':' choisie'}.</p>
         <div class="row"><input type="date" id="rp-debut" value="${il_y_a}" max="${auj}" aria-label="Du"><span class="muted">→</span><input type="date" id="rp-fin" value="${auj}" max="${auj}" aria-label="Au"></div>
-        <div class="row">${choixMarque('rp-marque')}<button class="btn" type="button" id="rp-btn">Générer le PDF</button></div></div>
-      <div class="bloc carte-rapport"><h3>Rapport points d’attention</h3><p class="muted small">Points d’attention actifs : choisissez les thématiques et publications ; le rapport reprend leurs fiches telles qu’affichées.</p>
+        <div class="row">${choixMarque('rp-marque')}<button class="btn" type="button" id="rp-btn">Générer le PDF</button></div></div></div>
+      <div class="bloc carte-rapport carte-att"><h3>Rapport points d’attention</h3><p class="muted small">Points d’attention actifs : choisissez les thématiques et publications ; le rapport reprend leurs fiches telles qu’affichées.</p>
         ${S.clients.length>1?`<div class="row">${choixMarque('ra-marque')}</div>`:''}
         <div class="choix-att" id="ra-choix"><p class="muted small">Chargement…</p></div>
         <div class="row"><button class="btn" type="button" id="ra-btn">Générer le PDF</button></div></div>
