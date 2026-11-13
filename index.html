@@ -1158,7 +1158,7 @@ async function admCreationMarque(quota){
   const blocC=()=>`<div class="ligne ligne-concsite"><input type="text" data-k="nom" placeholder="Nom du concurrent, ex. : MTN" maxlength="80" aria-label="Nom du concurrent"><input type="text" data-k="site" placeholder="Site officiel, ex. : www.mtn.ci" aria-label="Site officiel du concurrent"><button type="button" class="btn sec mini retirer" aria-label="Retirer ce concurrent">Retirer</button></div>`;
   z.innerHTML=`<form class="fiche" id="f-creation" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">Nouvelle marque</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
-      <p class="muted small">Indiquez le nom et le site officiel de la marque. La plateforme lit le site : elle récupère le logo pour les rapports, trouve les comptes officiels de la marque sur les réseaux et propose jusqu’à 8 lignes de mots-clés à partir du nom de la marque et de ses principaux produits. Tout reste modifiable ensuite.</p>
+      <p class="muted small">Indiquez le nom et le site officiel de la marque. La plateforme lit le site : elle récupère le logo pour les rapports, trouve les comptes officiels de la marque sur les réseaux et propose jusqu’à 5 lignes de mots-clés à partir du nom de la marque et de ses principaux produits. Tout reste modifiable ensuite.</p>
       <div class="row"><label>Nom de la marque<input type="text" id="c-nom" maxlength="80" required placeholder="Ex. : Orange"></label><label>Site officiel<input type="text" id="c-site" required placeholder="Ex. : www.orange.ci"></label><label>Pays surveillé<input type="text" id="c-pays" value="Côte d'Ivoire" maxlength="60"></label></div></div>
     <div class="bloc"><h3>Concurrents à suivre</h3><p class="muted small">Trois concurrents au plus. Indiquez leur nom et leur site officiel : leurs pages officielles sont trouvées sur leur site.</p>
       <div class="lignes" id="c-conc" data-max="3">${blocC()}</div><button type="button" class="btn sec mini" id="c-ajout">+ Ajouter un concurrent</button></div>
@@ -1175,7 +1175,7 @@ async function admCreationMarque(quota){
     if(conc.some(o=>o.site&&!siteValide(o.site)))return toast('L’adresse du site d’un concurrent n’est pas valide.',true);
     const b=$('#c-creer');b.disabled=true;$('#c-etat').textContent='Lecture du site de la marque et des concurrents…';
     let l;try{l=await lireSite({nom,site,pays,concurrents:conc})}catch(err){b.disabled=false;$('#c-etat').textContent='';return toast('Lecture du site impossible : '+err.message,true)}
-    const p={client_id:null,nom,pays,site_web:l.site||site,logo_url:l.logo_url||'',mots_cles:(l.mots||[]).map(composer).filter(Boolean).slice(0,8),
+    const p={client_id:null,nom,pays,site_web:l.site||site,logo_url:l.logo_url||'',mots_cles:(l.mots||[]).map(composer).filter(Boolean).slice(0,5),
       exclusions:[],comptes_officiels:l.comptes||[],haters:[],flux_rss:[],termes:[],
       concurrents:conc.map((o,i)=>({id:null,nom:o.nom,site_web:(l.concurrents||[])[i]?.site||o.site||'',mots_cles:[],comptes:(l.concurrents||[])[i]?.comptes||[]}))};
     $('#c-etat').textContent='Création de la marque…';
@@ -1225,6 +1225,19 @@ async function admFormMarque(clientId){
 
     <div class="bloc"><div class="entete-vue"><h3>Remplissage automatique</h3><div class="row" style="gap:.5rem">${c?`<button type="button" class="btn sec mini" id="completer-fiche" ${pr.etat==='a_faire'?'disabled':''}>${pr.etat==='a_faire'?'Remplissage en cours…':'Remplir la fiche'}</button>`:`<button type="button" class="btn sec mini" id="relire-site">Remplir la fiche</button>`}</div></div><p class="muted small" style="margin:0">${c?'Recherche le logo, les comptes officiels du pays et les mots-clés de la marque, puis met la fiche à jour toute seule en quelques minutes. Vous pouvez ensuite tout corriger à la main.':'Indiquez le nom et le site de la marque, puis cliquez : le logo, les comptes officiels et les mots-clés sont remplis à partir du site. Vérifiez, puis cliquez sur « Créer la marque » ; la fiche sera ensuite complétée automatiquement.'}</p></div>
 
+    <div class="bloc"><h3>Comptes officiels de la marque</h3><p class="muted small">Leurs publications alimentent l’onglet Canaux officiels et servent à proposer des mots-clés.</p>
+      <div id="z-officiels">${zoneLignes('compte',f.comptes_officiels||[],'Ajouter un compte officiel')}</div></div>
+
+    <div class="bloc"><h3>Mots-clés de la veille</h3>
+      <details class="aide-requete"><summary>Comment remplir une ligne</summary>
+        <p class="small">Chaque ligne se lit : <b>premier mot-clé</b> · <b>connecteur</b> · <b>second mot-clé</b>. Les accents et majuscules sont ignorés ; plusieurs mots dans une case forment une expression exacte.</p>
+        <ul class="small"><li><b>—</b> : le premier mot-clé seul (ex. <code>Orange CI</code>)</li><li><b>ET</b> : les deux à la fois (ex. <code>Orange Money</code> ET <code>frais OU arnaque</code>)</li><li><b>OU</b> : l’un ou l’autre (ex. <code>#OrangeEstLà</code> OU <code>#OrangeCI</code>)</li><li><b>SAUF</b> : le premier sans le second (ex. <code>Orange</code> SAUF <code>jus d'orange</code>)</li></ul></details>
+      <p class="muted small" style="margin:0">Cinq lignes au plus : chaque ligne est recherchée à chaque passage et consomme du crédit. Une ligne = premier mot-clé, connecteur, second mot-clé (ex. <code>Orange</code> ET <code>Côte d'Ivoire</code>).</p>
+      <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter une ligne de mots-clés',5)}</div>${tableBilan}
+      <div class="propositions" id="propositions"></div>
+      <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
+      <div id="z-excl">${zoneLignes('excl',(f.exclusions||[]).map(v=>({v})),'Ajouter un mot à exclure')}</div></div>
+
     <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
       <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
 
@@ -1254,7 +1267,7 @@ async function admFormMarque(clientId){
     try{const l=await lireSite({nom:$('#m-nom').value.trim(),site,pays:$('#m-pays').value.trim()});
       if(l.logo_url){logo=l.logo_url;$('#logo-apercu').innerHTML=`<img src="${esc(logo)}" alt="Logo de la marque">`}
       if((l.comptes||[]).length)$('#z-officiels').innerHTML=zoneLignes('compte',l.comptes,'Ajouter un compte officiel');
-      if((l.mots||[]).length)$('#z-mots').innerHTML=zoneLignes('mot',l.mots.slice(0,8),'Ajouter une ligne de mots-clés',8);
+      if((l.mots||[]).length)$('#z-mots').innerHTML=zoneLignes('mot',l.mots.slice(0,5),'Ajouter une ligne de mots-clés',5);
       changer();toast('Propositions reprises du site : vérifiez puis enregistrez'+((l.avertissements||[]).length?' — '+l.avertissements.join(' '):''));
     }catch(err){toast('Lecture du site impossible : '+err.message,true)}
     finally{bt.disabled=false;bt.textContent='Remplir la fiche'}};
@@ -1293,6 +1306,7 @@ async function admFormMarque(clientId){
     const z=$('#z-mots .lignes'),o=decomposer(b.dataset.t);
     const libre=[...z.querySelectorAll(':scope > .ligne')].find(l=>[...l.querySelectorAll('input')].every(i=>!i.value.trim()));
     if(libre){libre.querySelector('[data-k=a]').value=o.a;libre.querySelector('[data-k=op]').value=o.op;libre.querySelector('[data-k=b]').value=o.b}
+    else if(z.children.length>=5)return toast('Au plus 5 lignes de mots-clés : videz ou remplacez une ligne existante.',true);
     else z.insertAdjacentHTML('beforeend',ligne('mot',o));changer()});
   majPropositions();
 
@@ -1303,7 +1317,7 @@ async function admFormMarque(clientId){
     const incomplet=lignesMots.find(o=>(o.op&&(!o.a||!o.b))||(!o.op&&o.b));
     if(incomplet)return toast(incomplet.op?`Connecteur ${incomplet.op} : renseignez les deux mots-clés de la ligne.`:'Choisissez un connecteur (ET, OU, SAUF) entre les deux mots-clés.',true);
     const mots=lignesMots.map(composer).filter(Boolean);
-    if(mots.length>8)return toast('Au plus 8 lignes de mots-clés par marque.',true);
+    if(mots.length>5)return toast('Au plus 5 lignes de mots-clés par marque.',true);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
       site_web:b.querySelector('[data-c=site]').value.trim(),mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
