@@ -839,14 +839,14 @@ const VUES={
   officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
 async function vueListe(k,cible){
-  const v=VUES[k],c=cible||$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:'',periode:0});
+  const v=VUES[k],c=cible||$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',sens:'',pf:'',inter:'',tri:'recentes',q:'',marque:'',periode:0});
   const ep=v.periode?S:f;   // période commune (publications, canaux officiels, concurrents) ou propre à l'onglet (« Tout » par défaut)
   const plusieurs=false;   // une seule marque par espace
   c.innerHTML=`<section class="vue">${cible?'':`<div class="entete-vue"><h2>${v.titre}</h2></div>`}
     <div class="barre-filtres">
       ${k==='attention'?`<div class="onglets-niveaux"><div class="segments" role="group" aria-label="Niveau de surveillance" id="f-niveaux">${NIVEAUX.slice().reverse().map(([n,l])=>`<button type="button" data-n="${n}" aria-pressed="${(f.niveau||'renforcee')===n}">${l} <span class="num" data-c="${n}"></span></button>`).join('')}</div></div>`:periodeHTML(ep,!v.periode)}
       <select id="f-theme" aria-label="Thématique"><option value="">Toutes thématiques</option></select>
-      ${k==='attention'?'':'<select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>'}
+      <select id="f-sens" aria-label="Sens"><option value="">Tous les sens</option><option>Négatif</option><option>Neutre</option><option>Positif</option></select>
       <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option>${PLATEFORMES.map(x=>`<option>${x}</option>`).join('')}</select>
       <select id="f-inter" aria-label="Interactions"><option value="">Toutes interactions</option><option value="10">Plus de 10 interactions</option><option value="100">Plus de 100 interactions</option><option value="1000">Plus de 1 000 interactions</option></select>
       <select id="f-tri" aria-label="Tri"><option value="recentes">Tri : plus récentes</option><option value="engagement">Tri : plus d'interactions</option><option value="commentaires">Tri : plus commentées</option></select>
@@ -859,7 +859,7 @@ async function vueListe(k,cible){
   const options=(id,valeurs,courant,tous)=>{$(id).innerHTML=`<option value="">${tous}</option>`+valeurs.map(x=>`<option ${x===courant?'selected':''}>${esc(x)}</option>`).join('')};
   const afficher=()=>{
     const q=norm(f.q);
-    let l=donnees.filter(p=>(!f.marque||String(p.marque_id)===f.marque)&&(!f.theme||p.theme===f.theme)&&(!f.lieu||(p.lieu||'Non localisé')===f.lieu)&&(!f.pf||p.plateforme===f.pf)
+    let l=donnees.filter(p=>(!f.marque||String(p.marque_id)===f.marque)&&(!f.theme||p.theme===f.theme)&&(!f.sens||p.sentiment===f.sens)&&(!f.pf||p.plateforme===f.pf)
       &&(!f.inter||interactions(p)>Number(f.inter))&&(!q||norm([p.auteur,p.titre,p.texte,p.theme,p.lieu].join(' ')).includes(q)));
     const t=x=>new Date(x.publiee_le||0).getTime();
     // urgence : épinglés, puis alertes en cours (suivi toutes les heures, puis toutes les 2 heures), puis closes ; à égalité, la plus récemment signalée
@@ -894,11 +894,10 @@ async function vueListe(k,cible){
         for(const id of surv)COMMENTAIRES[id]=[];for(const x of cm||[])(COMMENTAIRES[x.publication_id]||=[]).push(x)}}}
     options('#f-pf',[...new Set([...PLATEFORMES,...donnees.map(p=>p.plateforme).filter(x=>x&&x!=='Capture')])],f.pf,'Toutes plateformes');
     options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
-    if($('#f-lieu'))options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
     afficher();
   };
-  $('#f-pf').value=f.pf;$('#f-inter').value=f.inter;$('#f-tri').value=f.tri;$('#f-q').value=f.q;
-  [['f-theme','theme'],['f-lieu','lieu'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
+  $('#f-pf').value=f.pf;$('#f-sens').value=f.sens||'';$('#f-inter').value=f.inter;$('#f-tri').value=f.tri;$('#f-q').value=f.q;
+  [['f-theme','theme'],['f-sens','sens'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
   let minuterie;$('#f-q').oninput=e=>{clearTimeout(minuterie);minuterie=setTimeout(()=>{f.q=e.target.value;afficher()},200)};
   brancherPeriode(c,ep,charger);
   const sn=$('#f-niveaux');if(sn)sn.querySelectorAll('[data-n]').forEach(x=>x.onclick=()=>{f.niveau=x.dataset.n;sn.querySelectorAll('[data-n]').forEach(y=>y.setAttribute('aria-pressed',y===x));afficher()});
