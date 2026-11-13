@@ -639,7 +639,7 @@ function dessinerPassages(){
   // vérification des évolutions des publications sous surveillance : relevé chaque heure à h47
   const v=new Date(maintenant);v.setUTCSeconds(0,0);if(v.getUTCMinutes()>=47)v.setUTCHours(v.getUTCHours()+1);v.setUTCMinutes(47);
   const pv=String(v.getUTCHours()).padStart(2,'0')+'h47';
-  $('#passages').innerHTML=`<span class="small">Veille à jour au ${jour} à ${heure} UTC</span><span class="small" title="Surveillance renforcée : toutes les heures · régulière : toutes les 2 heures · simple suivie : toutes les 3 heures">· Prochaine vérification des publications suivies : <b>${pv} UTC</b></span>`;
+  $('#passages').innerHTML=`<span class="small" title="Surveillance renforcée : toutes les heures · régulière : toutes les 2 heures · simple suivie : toutes les 3 heures">Prochaine analyse : <b>${pv} UTC</b></span>`;
 }
 setInterval(()=>{if(!$('#ecran-app').hidden)dessinerPassages()},60000);
 function dessinerMarques(){
