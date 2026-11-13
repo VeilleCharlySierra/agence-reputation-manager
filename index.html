@@ -1504,9 +1504,10 @@ async function fonctionComptes(corps){
   let j={};try{j=await r.json()}catch{j={ok:false,erreur:'réponse illisible'}}
   return j;
 }
-function montrerMdp(el,email,mdp){
-  el.innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Mot de passe provisoire de <b>${esc(email)}</b>, affiché une seule fois :</div><div class="row"><div class="mdp">${esc(mdp)}</div><button class="btn sec" type="button">Copier</button></div><div class="small muted">Adresse de la plateforme : <span style="user-select:all">${esc(location.href.split('#')[0])}</span></div></div>`;
-  el.querySelector('button').onclick=async()=>{try{await navigator.clipboard.writeText(mdp);toast('Copié')}catch{toast('Sélectionnez le mot de passe pour le copier.')}};
+// lien de connexion à usage unique (première connexion ou renouvellement) : envoyé par e-mail si possible, sinon à transmettre
+function montrerLien(el,email,j){
+  el.innerHTML=`<div class="bloc" style="background:var(--bg)"><div class="small">Lien de connexion de <b>${esc(email)}</b> ${j.envoye?'(envoyé aussi par e-mail)':'(à lui transmettre : l’envoi par e-mail n’a pas abouti)'} ; il ne sert qu’une fois. À l’arrivée, la personne choisit son mot de passe si elle n’en a pas encore.</div><div class="row"><div class="mdp" style="word-break:break-all;max-width:100%">${esc(j.lien||'')}</div><button class="btn sec" type="button">Copier</button></div></div>`;
+  el.querySelector('button').onclick=async()=>{try{await navigator.clipboard.writeText(j.lien);toast('Copié')}catch{toast('Sélectionnez le lien pour le copier.')}};
 }
 async function vueComptes(){
   await chargerReferentiel();
@@ -1523,7 +1524,7 @@ async function vueComptes(){
     <div class="row"><button class="btn" type="submit" id="u-btn">Créer le compte</button></div><div id="u-resultat"></div></form>
     <div class="bloc"><h3>Comptes</h3><div class="defile"><table class="tab"><thead><tr><th>Personne</th><th>Rôle</th><th>Marques visibles</th><th>État</th><th></th></tr></thead><tbody>
     ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(voit(u))}</td><td>${u.actif?'Actif':'Désactivé'}</td>
-    <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
+    <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-l="${esc(u.email)}">Lien de connexion</button> <button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
     </tbody></table></div><div id="u-res2"></div></div>`;
   const AIDE={admin_agence:'Voit et paramètre toutes les marques de l’agence ; crée les comptes administrateur agence, utilisateur agence et accès marque.',user_agence:'Responsable de comptes à l’agence : voit les marques cochées, reçoit leur rapport quotidien, peut suivre, épingler et signaler des points d’attention. Ne crée aucun compte.',user_client:'Accès réservé à une marque : consultation de sa seule veille et réception de son rapport quotidien. Ne crée aucun compte.',admin_plateforme:'Administration de la plateforme ; crée les comptes administrateur agence, utilisateur agence et accès marque.',super_admin:'Accès complet ; seul à créer les comptes super administrateur et administrateur plateforme.'};
   const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence';$('#u-aide').textContent=AIDE[r]||''};$('#u-role').onchange=maj;maj();
@@ -1532,8 +1533,9 @@ async function vueComptes(){
     const j=await fonctionComptes({action:'creer',email,nom:$('#u-nom').value.trim(),role,client_id:Number($('#u-client').value)||null,clients:[...c.querySelectorAll('#u-plusieurs input:checked')].map(i=>Number(i.value))});
     $('#u-btn').disabled=false;
     if(!j.ok)return toast('Création impossible : '+j.erreur,true);
-    toast('Compte créé');await vueComptes();montrerMdp($('#u-resultat'),email,j.mot_de_passe)};
-  c.querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{const j=await fonctionComptes({action:'reinitialiser',email:b.dataset.r});if(!j.ok)return toast(j.erreur,true);montrerMdp($('#u-res2'),b.dataset.r,j.mot_de_passe)});
+    toast('Compte créé');await vueComptes();montrerLien($('#u-resultat'),email,j)};
+  c.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>confirmer(b,'Le mot de passe actuel ne fonctionnera plus : la personne en choisira un nouveau avec le lien. Continuer ?',async()=>{const j=await fonctionComptes({action:'reinitialiser',email:b.dataset.r});if(!j.ok)return toast(j.erreur,true);montrerLien($('#u-res2'),b.dataset.r,j)}));
+  c.querySelectorAll('[data-l]').forEach(b=>b.onclick=async()=>{const j=await fonctionComptes({action:'lien',email:b.dataset.l});if(!j.ok)return toast(j.erreur,true);montrerLien($('#u-res2'),b.dataset.l,j)});
   c.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const u=us.find(x=>x.email===b.dataset.d);
     const j=await fonctionComptes({action:'modifier',email:u.email,nom:u.nom,role:u.role,client_id:u.client_id,clients:(uc||[]).filter(x=>x.email===u.email).map(x=>x.client_id),actif:!u.actif});
     if(!j.ok)return toast(j.erreur,true);toast(u.actif?'Compte désactivé':'Compte réactivé');vueComptes()});
