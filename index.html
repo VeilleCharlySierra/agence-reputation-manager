@@ -1250,7 +1250,7 @@ async function admFormMarque(clientId){
     <div class="bloc"><h3>Concurrents</h3><p class="muted small">Trois concurrents au plus. Seules leurs pages officielles sont suivies ; si vous indiquez leur site, leurs pages y sont trouvées à l’enregistrement. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
       <div id="z-conc">${conc.map(blocConc).join('')}</div><button type="button" class="btn sec mini" id="ajout-conc">+ Ajouter un concurrent</button></div>
 
-    <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Un terme trouvé dans une publication déclenche une alerte immédiate. Dix termes au plus.</p>
+    <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Une publication sur la marque qui contient l’un de ces termes devient un point d’attention (mot entier ; accents et majuscules ignorés). Ces termes ne lancent aucune recherche et ne coûtent rien. Dix termes au plus.</p>
       <div id="z-termes">${zoneLignes('terme',ter.map(t=>({v:t.terme})),'Ajouter un terme',10)}</div></div>
 
     <div class="barre-enregistrer"><span class="small muted" id="etat-fiche">${c?'Aucune modification.':'Renseignez la marque puis enregistrez une seule fois.'}</span><button class="btn" type="submit" id="b-enregistrer">${c?'Enregistrer les modifications':'Créer la marque'}</button></div>
