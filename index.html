@@ -164,7 +164,7 @@ section.vue{display:grid;gap:16px}
 .filtres{display:flex;flex-wrap:wrap;gap:8px}
 .filtres select,.filtres input{width:auto;min-width:0}
 .liste{display:grid;gap:10px}
-.barre-filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.barre-filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.barre-filtres select{width:auto}.barre-filtres #f-q{flex:1 1 180px;width:auto;min-width:150px}
 .barre-filtres select{width:auto;min-width:0;flex:1 1 170px;max-width:260px}
 .barre-filtres input[type=search]{flex:1 1 200px;max-width:280px;width:auto}
 .segments{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
@@ -832,7 +832,7 @@ async function vueListe(k,cible){
     <div class="barre-filtres">
       ${k==='attention'?`<div class="onglets-niveaux"><div class="segments" role="group" aria-label="Niveau de surveillance" id="f-niveaux">${NIVEAUX.slice().reverse().map(([n,l])=>`<button type="button" data-n="${n}" aria-pressed="${(f.niveau||'renforcee')===n}">${l} <span class="num" data-c="${n}"></span></button>`).join('')}</div></div>`:periodeHTML(ep,!v.periode)}
       <select id="f-theme" aria-label="Thématique"><option value="">Toutes thématiques</option></select>
-      <select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>
+      ${k==='attention'?'':'<select id="f-lieu" aria-label="Localité"><option value="">Toutes localités</option></select>'}
       <select id="f-pf" aria-label="Plateforme"><option value="">Toutes plateformes</option>${PLATEFORMES.map(x=>`<option>${x}</option>`).join('')}</select>
       <select id="f-inter" aria-label="Interactions"><option value="">Toutes interactions</option><option value="10">Plus de 10 interactions</option><option value="100">Plus de 100 interactions</option><option value="1000">Plus de 1 000 interactions</option></select>
       <select id="f-tri" aria-label="Tri"><option value="recentes">Tri : plus récentes</option><option value="engagement">Tri : plus d'interactions</option><option value="commentaires">Tri : plus commentées</option></select>
@@ -880,7 +880,7 @@ async function vueListe(k,cible){
         for(const id of surv)COMMENTAIRES[id]=[];for(const x of cm||[])(COMMENTAIRES[x.publication_id]||=[]).push(x)}}}
     options('#f-pf',[...new Set([...PLATEFORMES,...donnees.map(p=>p.plateforme).filter(x=>x&&x!=='Capture')])],f.pf,'Toutes plateformes');
     options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
-    options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
+    if($('#f-lieu'))options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
     afficher();
   };
   $('#f-pf').value=f.pf;$('#f-inter').value=f.inter;$('#f-tri').value=f.tri;$('#f-q').value=f.q;
