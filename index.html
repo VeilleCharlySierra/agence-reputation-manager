@@ -175,12 +175,12 @@ section.vue{display:grid;gap:16px}
 @media (max-width:1100px){.grille-pubs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.grille-pubs{grid-template-columns:1fr}}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
-.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;min-height:530px}
-.pub.avec-releves{min-height:560px}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:590px}
+.pub.avec-releves{height:590px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
-.pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 60%;height:60%;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
+.pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 220px;height:220px;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 .pub-image img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;flex:0 0 100%}
-.pub-corps{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;font-size:.84rem}
+.pub-corps{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden;font-size:.84rem}.pub-corps>*{flex-shrink:0}.pub-corps .pub-actions{flex-shrink:0}.pub-motifs{max-height:1.5em;overflow:hidden}
 .pub-corps .pub-auteur{font-size:.92rem}
 .pub-corps .pub-actions .btn{min-height:28px;padding:3px 8px}
 .pub-corps .puces{flex-wrap:nowrap;overflow:hidden;flex:0 0 auto}
@@ -778,7 +778,7 @@ async function vueTableau(){
   const [pp,att,suiv]=await Promise.all([
     // mêmes règles que les listes : publications visibles (non archivées), datées par leur date de publication sur la période
     filtreClient(SB.from('publications').select('id,categorie,sentiment,jaime,com,part,vues,plateforme,theme,lieu,texte,titre,auteur,lien,remontee_le,publiee_le').eq('type','remontee').is('archive_le',null)
-      .or(`and(publiee_le.gte.${bt.debut.toISOString()},publiee_le.lt.${bt.fin.toISOString()}),and(publiee_le.is.null,remontee_le.gte.${bt.debut.toISOString()},remontee_le.lt.${bt.fin.toISOString()})`)).limit(3000),
+      .gte('publiee_le',bt.debut.toISOString()).lt('publiee_le',bt.fin.toISOString())).limit(3000),
     filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie').is('archive_le',null))]);
   const pubs=pp.data||[],atts=att.data||[];
@@ -847,7 +847,7 @@ async function vueListe(k,cible){
     const q=norm(f.q);
     let l=donnees.filter(p=>(!f.marque||String(p.marque_id)===f.marque)&&(!f.theme||p.theme===f.theme)&&(!f.lieu||(p.lieu||'Non localisé')===f.lieu)&&(!f.pf||p.plateforme===f.pf)
       &&(!f.inter||interactions(p)>Number(f.inter))&&(!q||norm([p.auteur,p.titre,p.texte,p.theme,p.lieu].join(' ')).includes(q)));
-    const t=x=>new Date(x.publiee_le||x.remontee_le||0).getTime();
+    const t=x=>new Date(x.publiee_le||0).getTime();
     // urgence : épinglés, puis alertes en cours (suivi toutes les heures, puis toutes les 2 heures), puis closes ; à égalité, la plus récemment signalée
     const rang=x=>x.epingle?0:x.statut_suivi==='Alerte close'?3:x.statut_suivi==='Suivi toutes les 2 heures'?2:1;
     const sig=x=>new Date(x.attention_depuis||x.publiee_le||x.remontee_le||0).getTime();
@@ -868,7 +868,7 @@ async function vueListe(k,cible){
   const charger=async()=>{
     let q=filtreClient(v.q(SB.from('publications').select('*'))).is('archive_le',null).limit(500);
     const b=bornes(ep);
-    if(b){const x=b.debut.toISOString(),y=b.fin.toISOString();q=q.or(`and(publiee_le.gte.${x},publiee_le.lt.${y}),and(publiee_le.is.null,remontee_le.gte.${x},remontee_le.lt.${y})`)}
+    if(b){const x=b.debut.toISOString(),y=b.fin.toISOString();q=q.gte('publiee_le',x).lt('publiee_le',y)}
     const {data,error}=await q;
     if(error){$('#liste').innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';return}
     donnees=data||[];
@@ -983,7 +983,7 @@ async function comparaison(z,conc){
   if(error)return z.innerHTML='<p class="erreur">Chargement impossible : '+esc(error.message)+'</p>';
   const marques=S.clients.filter(x=>String(x.id)===String(S.client));
   const stats=(nom,l,estMarque)=>{l=l.slice(0,10);const n=l.length,s=k=>l.reduce((t,p)=>t+(p[k]||0),0);
-    const dates=l.map(p=>new Date(p.publiee_le||p.remontee_le).getTime()).filter(x=>x);const jours=dates.length>1?(Math.max(...dates)-Math.min(...dates))/864e5:0;
+    const dates=l.map(p=>new Date(p.publiee_le||0).getTime()).filter(x=>x);const jours=dates.length>1?(Math.max(...dates)-Math.min(...dates))/864e5:0;
     const top=[...l].sort((a,b)=>interactions(b)-interactions(a))[0];
     return {nom,estMarque,n,jaime:n?s('jaime')/n:0,com:n?s('com')/n:0,part:n?s('part')/n:0,vues:n&&l.some(p=>p.vues!=null)?s('vues')/n:null,inter:n?(s('jaime')+s('com')+s('part'))/n:0,total:s('jaime')+s('com')+s('part'),rythme:jours>0?(n-1)/jours*7:null,top,debut:dates.length?Math.min(...dates):null,fin:dates.length?Math.max(...dates):null}};
   const ent=x=>x==null?'—':nb(Math.round(x));
@@ -1064,11 +1064,11 @@ async function admRecap(){
   const bt=bornes(),duree=bt.fin-bt.debut,debut=bt.debut.toISOString(),finP=bt.fin.toISOString(),avant=new Date(bt.debut-duree).toISOString();
   const [pp,att,suiv,rap]=await Promise.all([
     SB.from('publications').select('client_id,sentiment,jaime,com,part,remontee_le,publiee_le,theme').eq('type','remontee').is('archive_le',null)
-      .or(`and(publiee_le.gte.${avant},publiee_le.lt.${finP}),and(publiee_le.is.null,remontee_le.gte.${avant},remontee_le.lt.${finP})`).limit(5000),
+      .gte('publiee_le',avant).lt('publiee_le',finP).limit(5000),
     SB.from('publications').select('client_id,statut_suivi').eq('categorie','attention').neq('type','concurrent').is('archive_le',null),
     SB.from('publications').select('client_id').eq('categorie','suivie').is('archive_le',null),
     SB.from('rapports').select('client_id,cree_le').order('cree_le',{ascending:false}).limit(200)]);
-  const pubs=(pp.data||[]).map(p=>({...p,date_ref:p.publiee_le||p.remontee_le}));
+  const pubs=(pp.data||[]).map(p=>({...p,date_ref:p.publiee_le}));
   const lignes=S.clients.map(c=>{
     const cour=pubs.filter(p=>p.client_id===c.id&&new Date(p.date_ref)>=bt.debut),prec=pubs.filter(p=>p.client_id===c.id&&new Date(p.date_ref)<bt.debut);
     const neg=cour.filter(p=>p.sentiment==='Négatif').length,an=cour.filter(p=>['Positif','Neutre','Négatif'].includes(p.sentiment)).length,inter=cour.reduce((s,p)=>s+interactions(p),0);
