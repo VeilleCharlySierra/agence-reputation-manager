@@ -175,12 +175,12 @@ section.vue{display:grid;gap:16px}
 @media (max-width:1100px){.grille-pubs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.grille-pubs{grid-template-columns:1fr}}
 .grille-pubs>.vide,.grille-pubs>p{grid-column:1/-1}
-.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:530px}
-.pub.avec-releves{height:560px}
+.pub{font-size:.88rem;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-width:0;min-height:530px}
+.pub.avec-releves{min-height:560px}
 .pub.epingle{box-shadow:0 0 0 1px var(--accent)}
 .pub-image{display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 60%;height:60%;background:var(--panel2);border-bottom:1px solid var(--line);color:var(--muted);font:700 .8rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 .pub-image img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;flex:0 0 100%}
-.pub-corps{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden;font-size:.84rem}
+.pub-corps{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;font-size:.84rem}
 .pub-corps .pub-auteur{font-size:.92rem}
 .pub-corps .pub-actions .btn{min-height:28px;padding:3px 8px}
 .pub-corps .puces{flex-wrap:nowrap;overflow:hidden;flex:0 0 auto}
@@ -194,7 +194,7 @@ section.vue{display:grid;gap:16px}
 dialog.fenetre{max-width:min(760px,94vw);width:100%;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:16px}
 dialog.fenetre::backdrop{background:rgba(0,0,0,.6)}
 dialog.fenetre .hausse{color:var(--pos,#3DA56A)}dialog.fenetre .baisse{color:var(--muted)}
-.pub-actions{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;margin-top:auto}
+.pub-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto}
 .pub-actions .btn{white-space:nowrap;padding:4px 8px}
 .pub-actions a{white-space:nowrap}
 .pub-actions a{font-weight:600;margin-right:4px}
