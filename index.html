@@ -800,7 +800,7 @@ const VUES={
   suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
   publications:{titre:'Publications',periode:true,note:'Les publications suivies et les points d’attention n’y figurent plus : ils sont dans leur onglet. Les publications ordinaires restent 72 h.',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
   concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l’instant. Les pages officielles des concurrents se déclarent avec chaque marque, dans Administration.'},
-  officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('categorie','publication').eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
+  officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
 };
 async function vueListe(k,cible){
   const v=VUES[k],c=cible||$('#contenu'),f=S.filtres[k]||(S.filtres[k]={theme:'',lieu:'',pf:'',inter:'',tri:'recentes',q:'',marque:'',periode:0});
