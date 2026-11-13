@@ -1067,7 +1067,7 @@ const MODELES={
   excl:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : jus d'orange" maxlength="120" aria-label="Mot à exclure">`},
   terme:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : boycott" maxlength="60" aria-label="Terme en surveillance">`},
   compte:{vide:{reseau:'Facebook',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="url" value="${esc(o.url)}" placeholder="Adresse du compte, ex. https://facebook.com/marque" aria-label="Adresse du compte">`},
-  rss:{vide:{nom:'',url:''},html:o=>`<input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du flux, ex. : Presse Abidjan" maxlength="80" aria-label="Nom du flux"><input type="url" data-k="url" value="${esc(o.url)}" placeholder="Adresse du flux, ex. https://rss.app/feeds/….xml" aria-label="Adresse du flux">`},
+  rss:{vide:{nom:'',url:''},html:o=>`<input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du flux, ex. : Presse Abidjan" maxlength="80" aria-label="Nom du flux"><input type="url" data-k="url" value="${esc(o.url)}" placeholder="Adresse du flux, ex. https://site.com/feed.xml" aria-label="Adresse du flux">`},
   hater:{vide:{reseau:'Facebook',nom:'',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du profil" maxlength="120" aria-label="Nom du profil"><input type="text" data-k="url" value="${esc(o.url||'')}" placeholder="Adresse du profil" aria-label="Adresse du profil">`}
 };
 function ligne(type,o){return `<div class="ligne ligne-${type}">${MODELES[type].html(o||MODELES[type].vide)}<button type="button" class="btn sec mini retirer" aria-label="Retirer cette ligne">Retirer</button></div>`}
@@ -1239,7 +1239,7 @@ async function admFormMarque(clientId){
       <textarea id="m-excl" rows="3" placeholder="Ex. : jus d'orange, orange mécanique, Orange RDC" aria-label="Mots à exclure, séparés par des virgules">${esc((f.exclusions||[]).join(', '))}</textarea>
       <p class="muted small" style="margin:0">Séparez les mots par des virgules. 30 au plus.</p></div>
 
-    <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
+    <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Sources supplémentaires à surveiller : un site d’actualité, une page ou un groupe qui publie un flux RSS (adresse en .xml). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
       <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
 
     <div class="bloc"><h3>Haters</h3><p class="muted small">Toute publication d’un hater sur la marque devient un point d’attention.</p>
