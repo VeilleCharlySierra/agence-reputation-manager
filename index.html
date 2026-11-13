@@ -106,10 +106,10 @@ header.haut .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;p
 .marque-active{display:flex;align-items:center;gap:8px;font-size:.9rem}
 .marque-active b{font-weight:800}
 .logos-marques{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
-.logos-marques button{height:48px;min-width:48px;max-width:130px;padding:5px 9px;border-radius:9px;background:#fff;border:2px solid #fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .15s,box-shadow .15s}
+.logos-marques button{height:48px;width:96px;flex:0 0 96px;padding:5px 8px;border-radius:9px;background:#fff;border:2px solid #fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .15s,box-shadow .15s}
 .logos-marques button:hover{transform:translateY(-1px)}
 .logos-marques button[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
-.logos-marques img{max-width:110px;max-height:34px;width:auto;height:auto;object-fit:contain;display:block}
+.logos-marques img{width:78px;height:34px;object-fit:contain;display:block}
 .logos-marques span{font-weight:800;color:#222;font-size:.9rem}
 .boutons-marques{display:flex;flex-wrap:wrap;gap:6px}
 .boutons-marques button{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--on-accent);border:1.5px solid var(--on-accent);border-radius:6px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;min-height:32px}
@@ -130,8 +130,8 @@ nav.onglets{border-bottom:1px solid var(--line);background:var(--bg)}
   .barre-marques .wrap{flex-wrap:wrap;gap:4px;padding-block:5px}
   .barre-marques .small{display:none}
   .logos-marques{gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-left:0;padding:4px}
-  .logos-marques button{height:38px;min-width:38px;max-width:96px;padding:3px 6px;border-radius:7px;flex:0 0 auto}
-  .logos-marques img{max-width:82px;max-height:28px}
+  .logos-marques button{height:38px;width:76px;padding:3px 6px;border-radius:7px;flex:0 0 76px}
+  .logos-marques img{width:62px;height:28px}
   .marque-active{font-size:.8rem}
   .passages,.choix-marque{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:4px}
   .passage{padding:1px 6px;font-size:.78rem;white-space:nowrap}
@@ -289,6 +289,20 @@ ul.pb{margin:6px 0 0;padding-left:16px;color:var(--fg)}
 #conc-corps .vue{padding:0}
 /* Récapitulatif */
 .marque-cell{display:flex;align-items:center;gap:8px}
+.abo{display:grid;gap:14px}
+.abo-tete{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.abo-tete img{width:78px;height:34px;object-fit:contain;background:#fff;border-radius:6px;padding:3px}
+.abo-tete h3{margin:0;font-size:1.15rem}
+.abo-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.abo-case{background:var(--panel2);border-radius:10px;padding:12px 14px;display:grid;gap:6px;align-content:start}
+.abo-case .lib{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.abo-case .val{font-size:1.15rem;font-weight:700}
+.conso .piste{height:10px;background:var(--panel);border-radius:5px;overflow:hidden}
+.conso .piste i{display:block;height:100%;background:var(--accent)}
+.conso .piste i.plein{background:#e5484d}
+.puce.essai{background:#5b4a12;color:#ffe08a}.puce.abonne{background:#173d2a;color:#8fe0b0}.puce.echu{background:#4a1518;color:#ff9a9e}
+.abo-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.abo-actions label{display:grid;gap:4px;font-size:.8rem}
 .marque-cell img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:5px;padding:2px}
 table td.n,table th.n{text-align:right}
 .hausse{color:var(--warn)} .baisse{color:var(--pos)}
@@ -1006,7 +1020,7 @@ async function comparaison(z,conc){
 }
 
 // ===== Administration =====
-const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['groupes','Groupes Facebook'],['journal','Journal d’activité']];
+const SECTIONS_ADMIN=[['recap','Récapitulatif'],['creation','Création de marque'],['marques','Marques suivies'],['gestion','Gestion des abonnements'],['criteres','Critères d’attention'],['comptes','Création de compte'],['remontees','Remontées de l’équipe'],['groupes','Groupes Facebook'],['journal','Journal d’activité']];
 function vueAdmin(){
   // sections réservées à l'équipe de la plateforme (super administrateur et administrateur plateforme)
   const RESERVEES=['remontees','groupes','journal'];
@@ -1016,13 +1030,57 @@ function vueAdmin(){
   $('#contenu').innerHTML=`<section class="vue"><div class="entete-vue"><h2>Administration</h2></div>
     <div class="admin-grille"><div class="admin-menu" role="navigation" aria-label="Administration">${sections.map(([k,l])=>`<button data-s="${k}" aria-current="${k===actif}">${l}</button>`).join('')}</div><div id="admin-corps" style="display:grid;gap:16px;min-width:0"></div></div></section>`;
   $('#contenu').querySelectorAll('.admin-menu button').forEach(b=>b.onclick=()=>{if(!quitterSansEnregistrer())return;S.admin=b.dataset.s;vueAdmin()});
-  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,groupes:admGroupes,journal:admJournal}[S.admin])();
+  ({recap:admRecap,creation:()=>admFormMarque(null),marques:admMarques,edition:()=>admFormMarque(S.adminMarque),gestion:admGestion,criteres:admCriteres,comptes:vueComptes,remontees:admRemontees,groupes:admGroupes,journal:admJournal}[S.admin])();
 }
 function confirmer(el,texte,action){
   const d=document.createElement('div');d.className='confirmation';
   d.innerHTML=`<span>${esc(texte)}</span><button class="btn danger mini" type="button">Confirmer</button><button class="btn sec mini" type="button">Annuler</button>`;
   el.after(d);el.hidden=true;
   const [ok,ann]=d.querySelectorAll('button');ann.onclick=()=>{d.remove();el.hidden=false};ok.onclick=async()=>{ok.disabled=true;await action();};
+}
+
+// ---- Gestion des abonnements : formule, période, prolongation, consommation du mois ----
+async function admGestion(){
+  const z=$('#admin-corps');z.innerHTML='<p class="muted">Chargement…</p>';
+  const [{data:liste,error},{data:formules}]=await Promise.all([SB.rpc('gestion_abonnements'),SB.from('formules').select('*').order('rang')]);
+  if(error){z.innerHTML='<p class="erreur">'+esc(error.message)+'</p>';return}
+  const F=Object.fromEntries((formules||[]).map(f=>[f.code,f]));
+  const op=estOperateur();
+  const jour=v=>v?new Date(v+'T00:00:00Z').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'}):'—';
+  const auj=new Date().toISOString().slice(0,10);
+  const statut=a=>a.en_essai?'<span class="puce essai">Essai</span>':a.fin&&a.fin<auj?'<span class="puce echu">Échu</span>':'<span class="puce abonne">Abonnée</span>';
+  const jauge=(lib,n,max)=>{const r=max?Math.min(100,n*100/max):0;return `<div class="abo-case conso"><span class="lib">${lib}</span><span class="val num">${nb(n)} <span class="small muted">/ ${max==null?'illimités':nb(max)}</span></span>${max==null?'':`<span class="piste"><i class="${n>=max?'plein':''}" style="width:${Math.max(r,1)}%"></i></span>`}</div>`};
+  const carte=a=>{const f=F[a.formule]||{};const rang=f.rang||0;const baisse=a.baisse_possible_le&&a.baisse_possible_le>auj;
+    return `<div class="bloc abo" data-c="${a.client_id}">
+      <div class="abo-tete">${a.logo_url?`<img src="${esc(a.logo_url)}" alt="">`:''}<h3>${esc(a.nom)}</h3>${statut(a)}<span class="puce">Formule ${esc(f.nom||'—')}</span></div>
+      <div class="abo-grille">
+        <div class="abo-case"><span class="lib">Formule</span><span class="val">${esc(f.nom||'—')}</span><span class="small muted">${f.prix_fcfa?nb(f.prix_fcfa)+' FCFA HT par mois':''}</span><span class="small muted">Captation ${esc(f.captation||'')} · relecture ${esc(f.relecture||'')}</span></div>
+        <div class="abo-case"><span class="lib">Abonnement</span><span class="val">${a.en_essai?'En essai':jour(a.debut)+' → '+jour(a.fin)}</span><span class="small muted">${a.en_essai?'La formule choisie n’a pas d’effet pendant l’essai.':a.fin?(a.fin<auj?'Abonnement échu : à prolonger.':Math.ceil((new Date(a.fin)-new Date(auj))/864e5)+' jours restants'):''}</span></div>
+        ${jauge('Publications ce mois',a.publications_mois,f.publications_mois)}
+        ${jauge('Points d’attention en cours',a.points_attention,f.points_attention)}
+        ${jauge('Accès marque',a.acces_marque,f.acces_marque)}
+      </div>
+      ${op?`<div class="abo-actions">
+        <label>Formule<select data-k="formule">${(formules||[]).map(x=>`<option value="${x.code}" ${x.code===a.formule?'selected':''} ${!a.en_essai&&baisse&&x.rang<rang?'disabled':''}>${esc(x.nom)} · ${nb(x.prix_fcfa)} FCFA${!a.en_essai&&baisse&&x.rang<rang?' (baisse possible le '+jour(a.baisse_possible_le)+')':''}</option>`).join('')}</select></label>
+        <label>Début<input type="date" data-k="debut" value="${a.debut||''}" ${a.en_essai?'disabled':''}></label>
+        <label>Fin<input type="date" data-k="fin" value="${a.fin||''}" ${a.en_essai?'disabled':''}></label>
+        <button class="btn mini" type="button" data-act="enregistrer">Enregistrer</button>
+        ${a.en_essai?'<button class="btn sec mini" type="button" data-act="ouvrir">Ouvrir l’abonnement</button>':`<span class="small muted">Prolonger :</span>${[1,3,6,12].map(m=>`<button class="btn sec mini" type="button" data-prol="${m}">+ ${m} mois</button>`).join('')}<button class="btn sec mini" type="button" data-act="essai">Repasser en essai</button>`}
+      </div>${!a.en_essai&&baisse?`<p class="small muted" style="margin:0">Passage à une formule supérieure possible à tout moment ; à une formule inférieure à partir du ${jour(a.baisse_possible_le)}, six mois après le dernier changement.</p>`:''}`
+      :`<p class="small muted" style="margin:0">Pour changer de formule ou prolonger l’abonnement, contactez l’équipe de la plateforme. Passage à une formule supérieure possible à tout moment, à une formule inférieure après six mois.</p>`}
+      ${(a.historique||[]).length?`<details><summary class="small">Historique</summary><ul class="small muted">${a.historique.map(h=>`<li>${esc(new Date(h.le).toLocaleDateString('fr-FR'))} · ${esc(h.detail||h.action)}</li>`).join('')}</ul></details>`:''}
+    </div>`};
+  z.innerHTML=`<div class="bloc"><h3>Gestion des abonnements</h3><p class="muted small" style="margin:0">Formule, période d’abonnement et consommation du mois en cours de chaque marque. Une marque en essai peut changer librement de formule ; une fois abonnée, elle peut monter à tout moment et descendre six mois après le dernier changement.</p></div>
+    ${(liste||[]).map(carte).join('')||'<div class="vide">Aucune marque suivie.</div>'}
+    <div class="bloc"><h3>Les formules</h3><div class="defile"><table class="tab"><thead><tr><th>Formule</th><th class="n">Prix (FCFA HT / mois)</th><th>Captation</th><th class="n">Publications par mois</th><th>Relecture des chiffres</th><th class="n">Points d’attention</th><th class="n">Accès marque</th></tr></thead><tbody>
+    ${(formules||[]).map(f=>`<tr><td><b>${esc(f.nom)}</b></td><td class="n num">${nb(f.prix_fcfa)}</td><td>${esc(f.captation)}</td><td class="n num">${nb(f.publications_mois)}</td><td>${esc(f.relecture)}</td><td class="n num">${f.points_attention}</td><td class="n num">${f.acces_marque==null?'illimités':f.acces_marque}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const envoyer=async p=>{const {error}=await SB.rpc('changer_abonnement',{p});if(error)return toast(error.message,true);toast('Abonnement mis à jour');await chargerReferentiel();admGestion()};
+  z.querySelectorAll('.abo').forEach(el=>{const id=Number(el.dataset.c);const v=k=>el.querySelector(`[data-k="${k}"]`)?.value;
+    el.querySelector('[data-act="enregistrer"]')?.addEventListener('click',()=>envoyer({client:id,formule:v('formule'),debut:v('debut'),fin:v('fin')}));
+    el.querySelector('[data-act="ouvrir"]')?.addEventListener('click',()=>envoyer({client:id,formule:v('formule'),en_essai:false}));
+    el.querySelector('[data-act="essai"]')?.addEventListener('click',()=>envoyer({client:id,en_essai:true}));
+    el.querySelectorAll('[data-prol]').forEach(b=>b.onclick=()=>envoyer({client:id,prolonger_mois:Number(b.dataset.prol)}));
+  });
 }
 
 // ---- Groupes Facebook publics : lecture par paliers (gestion de crise) ----
@@ -1217,11 +1275,15 @@ const siteValide=u=>/^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(St
 // création : l'agence indique le nom et le site officiel de la marque, et ses concurrents ; le reste est préparé à partir du site
 async function admCreationMarque(quota){
   const z=$('#admin-corps');
+  if(!S.formules){const {data}=await SB.from('formules').select('*').order('rang');S.formules=data||[]}
   const blocC=()=>`<div class="ligne ligne-concsite"><input type="text" data-k="nom" placeholder="Nom du concurrent, ex. : MTN" maxlength="80" aria-label="Nom du concurrent"><input type="text" data-k="site" placeholder="Site officiel, ex. : www.mtn.ci" aria-label="Site officiel du concurrent"><button type="button" class="btn sec mini retirer" aria-label="Retirer ce concurrent">Retirer</button></div>`;
   z.innerHTML=`<form class="fiche" id="f-creation" novalidate>
     <div class="bloc"><div class="entete-vue"><h3 style="font-size:1.2rem">Nouvelle marque</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota} marques</span>`:''}</div>
       <p class="muted small">Indiquez le nom et le site officiel de la marque. La plateforme lit le site : elle récupère le logo pour les rapports, trouve les comptes officiels de la marque sur les réseaux et propose jusqu’à 5 lignes de mots-clés à partir du nom de la marque et de ses principaux produits. Tout reste modifiable ensuite.</p>
       <div class="row"><label>Nom de la marque<input type="text" id="c-nom" maxlength="80" required placeholder="Ex. : Orange"></label><label>Site officiel<input type="text" id="c-site" required placeholder="Ex. : www.orange.ci"></label><label>Pays surveillé<input type="text" id="c-pays" value="Côte d'Ivoire" maxlength="60"></label></div></div>
+    <div class="bloc"><h3>Formule</h3><p class="muted small">La formule fixe le rythme de captation, le volume de publications par mois et le nombre d’accès marque. Pendant l’essai, elle n’a pas d’effet.</p>
+      <div class="row"><label>Formule de la marque<select id="c-formule">${(S.formules||[]).map(f=>`<option value="${f.code}" ${f.code==='pro'?'selected':''}>${esc(f.nom)} · ${nb(f.prix_fcfa)} FCFA HT par mois</option>`).join('')}</select></label>
+      ${estOperateur()?'<label style="display:flex;gap:8px;align-items:center;min-height:42px;white-space:nowrap"><input type="checkbox" id="c-essai" checked style="width:auto;margin:0"> <span>Marque en essai</span></label>':''}</div></div>
     <div class="bloc"><h3>Concurrents à suivre</h3><p class="muted small">Trois concurrents au plus. Indiquez leur nom et leur site officiel : leurs pages officielles sont trouvées sur leur site.</p>
       <div class="lignes" id="c-conc" data-max="3">${blocC()}</div><button type="button" class="btn sec mini" id="c-ajout">+ Ajouter un concurrent</button></div>
     <div class="barre-enregistrer"><span class="small muted" id="c-etat">La préparation prend une trentaine de secondes.</span><button class="btn" type="submit" id="c-creer">Créer la marque</button></div></form>`;
@@ -1244,6 +1306,7 @@ async function admCreationMarque(quota){
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     b.disabled=false;
     if(error){$('#c-etat').textContent='';return toast(error.code==='23505'?'Une marque porte déjà ce nom.':error.message,true)}
+    if($('#c-formule')){const r=await SB.rpc('formule_a_la_creation',{p_client:Number(data),p_formule:$('#c-formule').value,p_essai:$('#c-essai')?$('#c-essai').checked:true});if(r.error)toast('Formule non enregistrée : '+r.error.message,true)}
     S.preparation={client:Number(data),avertissements:l.avertissements||[],methode:l.methode};
     toast('Marque créée et préparée à partir de son site : vérifiez la fiche');
     await chargerReferentiel();S.admin='edition';S.adminMarque=Number(data);vueAdmin();
@@ -1435,7 +1498,7 @@ async function admMarques(){
   const nbUtil=id=>(us||[]).filter(u=>u.role==='user_client'&&u.client_id===id).length+(uc||[]).filter(x=>x.client_id===id).length;
   const z=$('#admin-corps');
   z.innerHTML=`<div class="bloc"><div class="entete-vue"><h3>Marques suivies</h3>${quota!=null?`<span class="puce num">${S.clients.length} / ${quota}</span>`:''}</div>
-    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>Premier tour de veille</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td class="small">${etatPremierTour(f)}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
+    ${S.clients.length?`<div class="defile"><table class="tab"><thead><tr><th>Marque</th><th>Secteur</th><th>Formule</th><th class="n">Mots-clés</th><th class="n">Comptes officiels</th><th class="n">Utilisateurs dédiés</th><th>Premier tour de veille</th><th>État</th><th></th></tr></thead><tbody>${S.clients.map(c=>{const f=S.marques.find(m=>m.client_id===c.id);return `<tr><td><div class="marque-cell">${c.logo_url?`<img src="${esc(c.logo_url)}" alt="">`:''}<b>${esc(c.nom)}</b></div></td><td>${esc(c.secteur||'')}</td><td>${esc(({essentielle:'Essentielle',pro:'Pro',reactive:'Réactive',temps_reel:'Temps réel'})[c.formule]||'—')}${c.en_essai?' <span class="puce essai">Essai</span>':''}</td><td class="n num">${(f?.mots_cles||[]).length}</td><td class="n num">${(f?.comptes_officiels||[]).length}</td><td class="n num">${nbUtil(c.id)}</td><td class="small">${etatPremierTour(f)}</td><td>${c.actif?'Suivie':'Suspendue'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn mini" data-m="${c.id}">Modifier</button> <button class="btn sec mini" data-s="${c.id}">${c.actif?'Suspendre':'Reprendre'}</button> <button class="btn danger mini" data-x="${c.id}">Supprimer</button></td></tr>`}).join('')}</tbody></table></div>`
       :'<p class="muted small">Aucune marque suivie. Créez la première dans « Création de marque ».</p>'}</div>`;
   z.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.admin='edition';S.adminMarque=Number(b.dataset.m);vueAdmin()});
