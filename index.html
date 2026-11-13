@@ -549,7 +549,7 @@ const SB_CLE='sb_publishable_q0M1LL74FcfKCbvzPoBy3Q_FUmXvKfV';
 const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage}});
 
 const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
-const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['user_agence','user_client']};
+const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
 const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 // Passages de collecte (heure UTC = heure d'Abidjan), fixés par la formule de l'agence
@@ -1476,7 +1476,7 @@ async function vueComptes(){
     ${(us||[]).map(u=>{const gere=roles.includes(u.role)&&u.email!==S.moi.email;return `<tr><td>${esc(u.nom||'')}<div class="small muted">${esc(u.email)}</div></td><td>${ROLES[u.role]}</td><td class="small">${esc(voit(u))}</td><td>${u.actif?'Actif':'Désactivé'}</td>
     <td style="text-align:right;white-space:nowrap">${gere?`<button class="btn sec mini" data-r="${esc(u.email)}">Nouveau mot de passe</button> <button class="btn sec mini" data-d="${esc(u.email)}">${u.actif?'Désactiver':'Réactiver'}</button> <button class="btn danger mini" data-x="${esc(u.email)}">Supprimer</button>`:''}</td></tr>`}).join('')}
     </tbody></table></div><div id="u-res2"></div></div>`;
-  const AIDE={admin_agence:'Voit et paramètre toutes les marques de l’agence ; crée les comptes utilisateur agence et accès marque.',user_agence:'Responsable de comptes à l’agence : voit les marques cochées, reçoit leur rapport quotidien, peut suivre, épingler et signaler des points d’attention. Ne crée aucun compte.',user_client:'Accès réservé à une marque : consultation de sa seule veille et réception de son rapport quotidien. Ne crée aucun compte.',admin_plateforme:'Administration de la plateforme ; crée les comptes administrateur agence, utilisateur agence et accès marque.',super_admin:'Accès complet ; seul à créer les comptes super administrateur et administrateur plateforme.'};
+  const AIDE={admin_agence:'Voit et paramètre toutes les marques de l’agence ; crée les comptes administrateur agence, utilisateur agence et accès marque.',user_agence:'Responsable de comptes à l’agence : voit les marques cochées, reçoit leur rapport quotidien, peut suivre, épingler et signaler des points d’attention. Ne crée aucun compte.',user_client:'Accès réservé à une marque : consultation de sa seule veille et réception de son rapport quotidien. Ne crée aucun compte.',admin_plateforme:'Administration de la plateforme ; crée les comptes administrateur agence, utilisateur agence et accès marque.',super_admin:'Accès complet ; seul à créer les comptes super administrateur et administrateur plateforme.'};
   const maj=()=>{const r=$('#u-role').value;$('#u-un-client').hidden=r!=='user_client';$('#u-plusieurs').hidden=r!=='user_agence';$('#u-aide').textContent=AIDE[r]||''};$('#u-role').onchange=maj;maj();
   $('#f-compte').onsubmit=async e=>{e.preventDefault();$('#u-btn').disabled=true;
     const role=$('#u-role').value,email=$('#u-email').value.trim().toLowerCase();
