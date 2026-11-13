@@ -349,6 +349,8 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:.85em}
 /* ===== Rapport (format A4, imprimable) ===== */
 body.rapport-ouvert{overflow:hidden}
 .rapport{position:fixed;inset:0;z-index:30;overflow:auto;background:#2a2a2a;padding-bottom:40px}
+.pub.prioritaire{outline:3px solid #ff3b30;outline-offset:-1px;box-shadow:0 0 0 6px rgba(255,59,48,.18)}
+.pub-sens{font-size:.8rem;margin-top:2px}
 .ajout-att{display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin:0 0 10px}
 @media (max-width:820px){.ajout-att{grid-template-columns:1fr}}
 .niveaux{display:grid;gap:18px}.niveau>.entete-vue{margin-bottom:8px}.niveau h3{margin:0;display:flex;gap:8px;align-items:center}
@@ -845,7 +847,7 @@ async function vueListe(k,cible){
       // un sous-onglet par niveau de surveillance ; les épinglées d'abord
       const nv=f.niveau||'renforcee',[,,aide]=NIVEAUX.find(x=>x[0]===nv);
       $('#f-niveaux').querySelectorAll('[data-c]').forEach(x=>x.textContent='('+l.filter(p=>niveau(p)===x.dataset.c).length+')');
-      const g=l.filter(p=>niveau(p)===nv).sort((a,b)=>(b.epingle?1:0)-(a.epingle?1:0));
+      const g=l.filter(p=>niveau(p)===nv).sort((a,b)=>(b.epingle?1:0)-(a.epingle?1:0)||(prioritaire(b)?1:0)-(prioritaire(a)?1:0)||(Number(b.viralite)||interactions(b))-(Number(a.viralite)||interactions(a)));
       $('#f-compte').textContent=`${nom} · ${libNiveau(nv)} : ${g.length} publication${g.length>1?'s':''}, ${aide} · ${g.filter(p=>p.epingle).length} / 3 épinglées.`;
       $('#liste').innerHTML=g.length?g.map(p=>carte(p,plusieurs)).join(''):`<div class="vide">Aucune publication en ${libNiveau(nv).toLowerCase()}${donnees.length&&l.length<donnees.length?' pour ces filtres':''}.</div>`;
     }else $('#liste').innerHTML=l.length?l.map(p=>carte(p,plusieurs)).join(''):`<div class="vide">${donnees.length?'Aucune publication ne correspond aux filtres.':v.vide}</div>`;
@@ -861,7 +863,10 @@ async function vueListe(k,cible){
     donnees=data||[];
     // relevés horaires des points d'attention et des publications suivies (évolution des chiffres)
     if(k==='attention'){const ids=donnees.map(p=>p.id);if(ids.length){const {data:rl}=await SB.from('releves').select('publication_id,releve_le,jaime,com,part,vues').in('publication_id',ids).order('releve_le',{ascending:true}).limit(5000);
-      for(const id of ids)RELEVES[id]=[];for(const r of rl||[])(RELEVES[r.publication_id]||=[]).push(r)}}
+      for(const id of ids)RELEVES[id]=[];for(const r of rl||[])(RELEVES[r.publication_id]||=[]).push(r)
+      const surv=donnees.filter(p=>['renforcee','reguliere'].includes(niveau(p))).map(p=>p.id);
+      if(surv.length){const {data:cm}=await SB.from('commentaires').select('publication_id,sentiment,cree_le').in('publication_id',surv).is('archive_le',null).limit(5000);
+        for(const id of surv)COMMENTAIRES[id]=[];for(const x of cm||[])(COMMENTAIRES[x.publication_id]||=[]).push(x)}}}
     options('#f-pf',[...new Set([...PLATEFORMES,...donnees.map(p=>p.plateforme).filter(x=>x&&x!=='Capture')])],f.pf,'Toutes plateformes');
     options('#f-theme',[...new Set(donnees.map(p=>p.theme).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),f.theme,'Toutes thématiques');
     options('#f-lieu',[...new Set(donnees.map(p=>p.lieu||'Non localisé'))].sort((a,b)=>a.localeCompare(b,'fr')),f.lieu,'Toutes localités');
@@ -883,23 +888,32 @@ const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''
 // début du texte : 20 mots au plus, la suite se lit sur la publication
 const extrait=(t,n=20)=>{const m=String(t).replace(/\s+/g,' ').trim().split(' ');return m.length>n?m.slice(0,n).join(' ')+'…':m.join(' ')};
 // relevés d'une publication suivie ou en point d'attention
-const RELEVES={};
+const RELEVES={},COMMENTAIRES={};
+// sens des commentaires lus jusqu'à une date (tous si aucune date) : parts positives, négatives, neutres
+function sensCommentaires(id,jusque){
+  const l=(COMMENTAIRES[id]||[]).filter(c=>c.sentiment&&(!jusque||new Date(c.cree_le)<=new Date(new Date(jusque).getTime()+3600e3)));
+  if(!l.length)return null;const n=s=>Math.round(100*l.filter(c=>c.sentiment===s).length/l.length);
+  return {n:l.length,neg:n('Négatif'),pos:n('Positif'),neu:n('Neutre')};
+}
+const libSens=x=>x?`${x.neg} % négatifs · ${x.pos} % positifs · ${x.neu} % neutres <small class="muted">(${x.n} lus)</small>`:'<span class="muted">pas encore lus</span>';
+const prioritaire=p=>(p.motifs||[]).some(m=>/^Terme en surveillance/.test(m));
 const heureUTC=v=>new Date(v).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}).replace(' ',' à ').replace(':','h');
 const ecart=(a,b)=>a==null||b==null?'':(b-a>0?'+':b-a<0?'−':'±')+nb(Math.abs(b-a));
 function resumeReleves(p){
   const l=RELEVES[p.id];if(!l)return '';
   if(!l.length)return '<div class="pub-releves muted">Aucun relevé pour l’instant</div>';
   const a=l[0],z=l[l.length-1];
-  return `<div class="pub-releves" title="Relevés horodatés en UTC">${l.length} relevé${l.length>1?'s':''} · dernier le ${heureUTC(z.releve_le)}${l.length>1?` · comm. ${ecart(a.com,z.com)} · j'aime ${ecart(a.jaime,z.jaime)}`:''}</div>`;
+  const sens=['renforcee','reguliere'].includes(niveau(p))?`<div class="pub-sens">Sens des commentaires : ${libSens(sensCommentaires(p.id))}</div>`:'';
+  return `<div class="pub-releves" title="Relevés horodatés en UTC">${l.length} relevé${l.length>1?'s':''} · dernier le ${heureUTC(z.releve_le)}${l.length>1?` · comm. ${ecart(a.com,z.com)} · j'aime ${ecart(a.jaime,z.jaime)}`:''}</div>${sens}`;
 }
 function ouvrirReleves(p){
-  if(!p)return;const l=RELEVES[p.id]||[];
+  if(!p)return;const l=RELEVES[p.id]||[];const avecSens=['renforcee','reguliere'].includes(niveau(p));
   const d=document.createElement('dialog');d.className='fenetre';
   const ligne=(r,i)=>{const av=l[i-1];const c=(k)=>`<td class="n num">${nb(r[k])}${av&&r[k]!=null&&av[k]!=null&&r[k]!==av[k]?` <small class="${r[k]>av[k]?'hausse':'baisse'}">${ecart(av[k],r[k])}</small>`:''}</td>`;
-    return `<tr><td class="num">${heureUTC(r.releve_le)}</td>${c('jaime')}${c('com')}${c('part')}${c('vues')}</tr>`};
+    return `<tr><td class="num">${heureUTC(r.releve_le)}</td>${c('jaime')}${c('com')}${c('part')}${c('vues')}${avecSens?`<td class="small">${libSens(sensCommentaires(p.id,r.releve_le))}</td>`:''}</tr>`};
   d.innerHTML=`<div class="entete-vue"><h3 style="margin:0">Relevés · ${esc(p.auteur||'Publication')}</h3><button class="btn sec mini" type="button" data-f>Fermer</button></div>
-    <p class="muted small">${esc(p.statut_suivi||(p.categorie==='suivie'?'Publication suivie : relevée à chaque passage':''))} · heures UTC. Le chiffre en petit indique l’évolution depuis le relevé précédent.</p>
-    ${l.length?`<div class="defile"><table class="tab"><thead><tr><th>Relevé</th><th class="n">J'aime</th><th class="n">Commentaires</th><th class="n">Partages</th><th class="n">Vues</th></tr></thead><tbody>${[...l].map(ligne).reverse().join('')}</tbody></table></div>`:'<p class="muted">Aucun relevé pour l’instant : le premier est fait au prochain relevé horaire.</p>'}`;
+    <p class="muted small">${esc(libNiveau(niveau(p)))} · heures UTC. Le chiffre en petit indique l’évolution depuis le relevé précédent.${avecSens?' Le sens des commentaires est celui des commentaires lus jusqu’à ce relevé.':' En simple suivie, seule l’évolution des interactions est relevée.'}</p>
+    ${l.length?`<div class="defile"><table class="tab"><thead><tr><th>Relevé</th><th class="n">J'aime</th><th class="n">Commentaires</th><th class="n">Partages</th><th class="n">Vues</th>${avecSens?'<th>Sens des commentaires</th>':''}</tr></thead><tbody>${[...l].map(ligne).reverse().join('')}</tbody></table></div>`:'<p class="muted">Aucun relevé pour l’instant : le premier est fait au prochain relevé horaire.</p>'}`;
   document.body.appendChild(d);d.querySelector('[data-f]').onclick=()=>d.close();d.onclose=()=>d.remove();d.addEventListener('click',e=>{if(e.target===d)d.close()});d.showModal();
 }
 // niveaux de surveillance : simple suivie (relevée à chaque passage), régulière (toutes les 2 heures), renforcée (toutes les heures)
@@ -917,7 +931,7 @@ function carte(p,avecMarque=true){
     b('retirer','Retirer')
   ].join(''):b('surveiller','Mettre en surveillance')):'';
   const quand=p.categorie==='publication'?'remontée le '+date(p.remontee_le):'dernier relevé le '+date(p.dernier_releve_le||p.remontee_le);
-  return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''} ${RELEVES[p.id]?'avec-releves':''}">
+  return `<article class="pub ${esc(p.sentiment||'')} ${p.epingle?'epingle':''} ${prioritaire(p)?'prioritaire':''} ${RELEVES[p.id]?'avec-releves':''}">
     <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
       <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
