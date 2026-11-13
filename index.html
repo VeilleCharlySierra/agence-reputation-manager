@@ -1672,7 +1672,13 @@ async function exporterPDF(html,nom,paysage=false){
     const pages=[...zone.querySelectorAll('.page')];
     for(let i=0;i<pages.length;i++){
       toast(`Préparation du PDF… page ${i+1} sur ${pages.length}`);
-      const cv=await window.html2canvas(pages[i],{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+      // un élément à fond dégradé ou image de taille nulle (barre à 0 %) fait échouer le rendu : il est ignoré (il serait invisible)
+      const vide=el=>{const r=el.getBoundingClientRect?.();return r&&(r.width<1||r.height<1)&&getComputedStyle(el).backgroundImage!=='none'};
+      const opts={scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,ignoreElements:vide};
+      let cv;
+      try{cv=await window.html2canvas(pages[i],opts)}
+      catch(err){// second essai sans aucun fond dégradé ou image : le texte, les chiffres et les photos restent
+        cv=await window.html2canvas(pages[i],{...opts,onclone:d=>d.querySelectorAll('*').forEach(e=>{if(d.defaultView.getComputedStyle(e).backgroundImage!=='none')e.style.backgroundImage='none'})})}
       if(i)pdf.addPage();
       pdf.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,l,h,undefined,'FAST');
     }
