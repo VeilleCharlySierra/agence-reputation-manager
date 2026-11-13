@@ -1297,10 +1297,17 @@ async function admFormMarque(clientId){
   function majPropositions(){
     const deja=new Set(lireLignes($('#z-mots .lignes')).map(o=>composer(o).toLowerCase()).filter(Boolean));
     const loc=propositionsLocales($('#m-nom').value,lireLignes($('#z-officiels .lignes')));
-    const tout=[...loc.map(t=>({t,src:'nom et comptes'})),...sug.map(s=>({t:s.terme,src:s.occurrences+' fois dans les publications officielles'}))]
+    // propositions liées à la marque seulement : un mot-dièse qui contient le nom de la marque ou un mot de ses lignes de mots-clés (jamais un @compte de personne)
+    const sansAccent=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,' ');
+    const vides=new Set(['cote','ivoire','abidjan','service','client','reseau','connexion','arnaque','frais']);
+    const textes=[$('#m-nom').value,...lireLignes($('#z-mots .lignes')).map(composer)];
+    const groupes=textes.flatMap(t=>[...t.matchAll(/"([^"]+)"/g)].map(m=>sansAccent(m[1]).replace(/\s/g,''))).filter(w=>w.length>=4&&!/cotedivoire/.test(w));
+    const racines=[...new Set([...textes.join(' ').split(/\s+/).map(sansAccent).join(' ').split(/\s+/).filter(w=>w.length>=4&&!vides.has(w)),...groupes])];
+    const lie=t=>t.startsWith('#')&&racines.some(r=>sansAccent(t).replace(/\s/g,'').includes(r));
+    const tout=[...loc.map(t=>({t,src:'nom et comptes'})),...sug.filter(s=>lie(s.terme)).map(s=>({t:s.terme,src:s.occurrences+' fois dans les publications officielles'}))]
       .filter((x,i,a)=>!deja.has(x.t.toLowerCase())&&a.findIndex(y=>y.t.toLowerCase()===x.t.toLowerCase())===i);
     $('#propositions').innerHTML=tout.length?`<div class="sous-titre">Mots-clés proposés</div><div class="puces">${tout.map(x=>`<button type="button" class="proposition" data-t="${esc(x.t)}" title="${esc(x.src)}">+ ${esc(x.t)}</button>`).join('')}</div>
-      <p class="muted small" style="margin:0">Proposés à partir du nom de la marque et de ses comptes officiels${c?' ; la liste s’enrichit à chaque passage avec les termes les plus utilisés par la marque':''}.</p>`:'';
+      <p class="muted small" style="margin:0">Proposés à partir du nom de la marque et de ses comptes officiels${c?' ; s’y ajoutent les mots-dièses de la marque et de ses produits relevés dans ses publications officielles':''}.</p>`:'';
   }
   $('#propositions').addEventListener('click',e=>{const b=e.target.closest('.proposition');if(!b)return;
     const z=$('#z-mots .lignes'),o=decomposer(b.dataset.t);
