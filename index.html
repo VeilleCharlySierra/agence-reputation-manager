@@ -630,16 +630,13 @@ async function chargerReferentiel(){
 // hauteur de l'en-tête figé, pour placer les éléments collants en dessous
 new ResizeObserver(()=>document.documentElement.style.setProperty('--haut-entete',$('#entete-fixe').offsetHeight+'px')).observe($('#entete-fixe'));
 function dessinerPassages(){
-  // comme les outils de veille du marché : seule l'heure de la dernière mise à jour est indiquée, pas le calendrier des collectes
   const maintenant=new Date(),m=maintenant.getUTCHours()*60+maintenant.getUTCMinutes();
   const mins=PASSAGES.map(h=>{const [a,b]=h.split(':').map(Number);return a*60+b});
-  const passes=mins.filter(x=>x<=m);
-  const d=new Date(maintenant);if(passes.length){const x=Math.max(...passes);d.setUTCHours(Math.floor(x/60),x%60,0,0)}else{const x=Math.max(...mins);d.setUTCDate(d.getUTCDate()-1);d.setUTCHours(Math.floor(x/60),x%60,0,0)}
-  const jour=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',timeZone:'UTC'}),heure=String(d.getUTCHours()).padStart(2,'0')+'h'+String(d.getUTCMinutes()).padStart(2,'0');
-  // vérification des évolutions des publications sous surveillance : relevé chaque heure à h47
-  const v=new Date(maintenant);v.setUTCSeconds(0,0);if(v.getUTCMinutes()>=47)v.setUTCHours(v.getUTCHours()+1);v.setUTCMinutes(47);
-  const pv=String(v.getUTCHours()).padStart(2,'0')+'h47';
-  $('#passages').innerHTML=`<span class="small" title="Surveillance renforcée : toutes les heures · régulière : toutes les 2 heures · simple suivie : toutes les 3 heures">Prochaine analyse : <b>${pv} UTC</b></span>`;
+  let prochain=mins.findIndex(x=>x>m);if(prochain<0)prochain=0;
+  $('#passages').innerHTML=`<span class="small">Heures d’analyse (UTC) :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
+    return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochaine analyse':etat==='fait'?'Analyse effectuée':'Analyse à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
+  // petit écran : la liste défile jusqu'à la prochaine analyse
+  const pr=$('#passages .prochain');if(pr)$('#passages').scrollLeft=Math.max(0,pr.offsetLeft-$('#passages').offsetLeft-40);
 }
 setInterval(()=>{if(!$('#ecran-app').hidden)dessinerPassages()},60000);
 function dessinerMarques(){
