@@ -351,6 +351,8 @@ body.rapport-ouvert{overflow:hidden}
 .rapport{position:fixed;inset:0;z-index:30;overflow:auto;background:#2a2a2a;padding-bottom:40px}
 .pub.prioritaire{outline:3px solid #ff3b30;outline-offset:-1px;box-shadow:0 0 0 6px rgba(255,59,48,.18)}
 .pub-sens{font-size:.8rem;margin-top:2px}
+.ligne-terme{grid-template-columns:1fr 90px 1fr auto auto}.terme-marque{white-space:nowrap;font-size:.85rem;font-weight:600;align-self:center}
+@media (max-width:820px){.ligne-terme{grid-template-columns:1fr auto}.ligne-terme input,.ligne-terme select,.ligne-terme .terme-marque{grid-column:1}.ligne-terme .retirer{grid-column:2;grid-row:1/5}}
 .ajout-att{display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin:0 0 10px}
 @media (max-width:820px){.ajout-att{grid-template-columns:1fr}}
 .niveaux{display:grid;gap:18px}.niveau>.entete-vue{margin-bottom:8px}.niveau h3{margin:0;display:flex;gap:8px;align-items:center}
@@ -519,7 +521,7 @@ body.rapport-ouvert{overflow:hidden}
     <div class="filigrane" aria-hidden="true"><i class="halo"></i><i class="grappe g1"></i><i class="grappe g2"></i><i class="geant s1"></i><i class="geant s2"></i><i class="s3"></i><i class="s4"></i></div>
     <form class="carte-connexion" id="f-mdp" novalidate>
       <h1>Choisissez votre mot de passe</h1><div class="trait"></div>
-      <p class="muted small">Le mot de passe reçu était provisoire. Choisissez-en un d'au moins 10 caractères.</p>
+      <p class="muted small">Choisissez votre mot de passe : au moins 8 caractères, dont un chiffre, une majuscule et un caractère spécial (par exemple ! ? @ # %). Il vous servira à chaque connexion.</p>
       <label>Nouveau mot de passe<input type="password" id="m-1" autocomplete="new-password"></label>
       <label>Confirmer<input type="password" id="m-2" autocomplete="new-password"></label>
       <div class="erreur" id="m-erreur" role="alert"></div>
@@ -660,7 +662,7 @@ $('#f-connexion').addEventListener('submit',async e=>{
 });
 $('#f-mdp').addEventListener('submit',async e=>{
   e.preventDefault();const a=$('#m-1').value,b=$('#m-2').value;
-  if(a.length<10)return $('#m-erreur').textContent='Au moins 10 caractères.';
+  if(a.length<8||!/[0-9]/.test(a)||!/[A-Z]/.test(a)||!/[^A-Za-z0-9]/.test(a))return $('#m-erreur').textContent='Au moins 8 caractères, dont un chiffre, une majuscule et un caractère spécial.';
   if(a!==b)return $('#m-erreur').textContent='Les deux saisies ne sont pas identiques.';
   const {error}=await SB.auth.updateUser({password:a});
   if(error)return $('#m-erreur').textContent='Enregistrement impossible : '+error.message;
@@ -825,7 +827,6 @@ async function vueListe(k,cible){
       <select id="f-inter" aria-label="Interactions"><option value="">Toutes interactions</option><option value="10">Plus de 10 interactions</option><option value="100">Plus de 100 interactions</option><option value="1000">Plus de 1 000 interactions</option></select>
       <select id="f-tri" aria-label="Tri"><option value="recentes">Tri : plus récentes</option><option value="engagement">Tri : plus d'interactions</option><option value="commentaires">Tri : plus commentées</option></select>
       <input type="search" id="f-q" placeholder="Rechercher un mot, un auteur…" aria-label="Rechercher">
-      <button type="button" class="btn" id="f-rapport">Générer le rapport</button>
     </div>
     ${k==='attention'&&peutAgir()?`<form class="ajout-att" id="ajout-att"><input type="text" id="aa-lien" placeholder="Lien de la publication à surveiller (Facebook, X, TikTok, Instagram, YouTube…)" aria-label="Lien de la publication"><select id="aa-niveau" aria-label="Niveau de surveillance">${NIVEAUX.map(([n,l])=>`<option value="${n}">${l}</option>`).join('')}</select><button class="btn" type="submit">Ajouter un point d’attention</button></form>`:''}
     <p class="muted small" id="f-compte"></p>
@@ -876,7 +877,6 @@ async function vueListe(k,cible){
   [['f-theme','theme'],['f-lieu','lieu'],['f-pf','pf'],['f-inter','inter'],['f-tri','tri']].forEach(([id,cle])=>{const e=$('#'+id);if(e)e.onchange=()=>{f[cle]=e.value;afficher()}});
   let minuterie;$('#f-q').oninput=e=>{clearTimeout(minuterie);minuterie=setTimeout(()=>{f.q=e.target.value;afficher()},200)};
   brancherPeriode(c,ep,charger);
-  $('#f-rapport').onclick=()=>ouvrir('rapports');
   const sn=$('#f-niveaux');if(sn)sn.querySelectorAll('[data-n]').forEach(x=>x.onclick=()=>{f.niveau=x.dataset.n;sn.querySelectorAll('[data-n]').forEach(y=>y.setAttribute('aria-pressed',y===x));afficher()});
   const fa=$('#ajout-att');if(fa)fa.onsubmit=async e=>{e.preventDefault();const lien=$('#aa-lien').value.trim();if(!lien)return $('#aa-lien').focus();
     const bt=fa.querySelector('button');bt.disabled=true;
@@ -1112,7 +1112,7 @@ const MODELES={
     <select data-k="op" aria-label="Connecteur"><option value="" ${!o.op?'selected':''}>—</option>${['ET','OU','SAUF'].map(x=>`<option ${o.op===x?'selected':''}>${x}</option>`).join('')}</select>
     <input type="text" data-k="b" value="${esc(o.b)}" placeholder="Second mot-clé, ex. : frais OU arnaque" maxlength="160" aria-label="Second mot-clé">`},
   excl:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : jus d'orange" maxlength="120" aria-label="Mot à exclure">`},
-  terme:{vide:{v:''},html:o=>`<input type="text" data-k="v" value="${esc(o.v)}" placeholder="Ex. : boycott" maxlength="60" aria-label="Terme en surveillance">`},
+  terme:{vide:{a:'',op:'ET',b:''},html:o=>`<input type="text" data-k="a" value="${esc(o.a||'')}" placeholder="Premier mot, ex. : boycott" maxlength="60" aria-label="Premier mot"><select data-k="op" aria-label="Opérateur">${['ET','OU','SAUF'].map(x=>`<option ${x===(o.op||'ET')?'selected':''}>${x}</option>`).join('')}</select><input type="text" data-k="b" value="${esc(o.b||'')}" placeholder="Second mot (facultatif), ex. : réseau" maxlength="60" aria-label="Second mot"><span class="terme-marque">ET ${esc(S.nomCourtFiche||'la marque')}</span>`},
   compte:{vide:{reseau:'Facebook',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="url" value="${esc(o.url)}" placeholder="Adresse du compte, ex. https://facebook.com/marque" aria-label="Adresse du compte">`},
   flux:{vide:{url:'',nom:'',hater:false},html:o=>`<input type="text" data-k="url" value="${esc(o.url)}" placeholder="Lien de la page, du compte, du groupe ou du site, ex. https://facebook.com/page" aria-label="Lien à suivre"><input type="text" data-k="nom" value="${esc(o.nom||'')}" placeholder="Nom (facultatif)" maxlength="80" aria-label="Nom"><label class="case-hater"><input type="checkbox" data-k="hater" ${o.hater?'checked':''}> Hater</label>`},
   hater:{vide:{reseau:'Facebook',nom:'',url:''},html:o=>`<select data-k="reseau" aria-label="Réseau">${optReseau(o.reseau)}</select><input type="text" data-k="nom" value="${esc(o.nom)}" placeholder="Nom du profil" maxlength="120" aria-label="Nom du profil"><input type="text" data-k="url" value="${esc(o.url||'')}" placeholder="Adresse du profil" aria-label="Adresse du profil">`}
@@ -1251,9 +1251,11 @@ async function admFormMarque(clientId){
   const f=c?(S.marques.find(m=>m.client_id===c.id)||{}):{};
   let hat=[],conc=[],ter=[],sug=[];
   if(c){const r=await Promise.all([SB.from('haters').select('*').eq('client_id',c.id).order('nom'),SB.from('concurrents').select('*').eq('client_id',c.id).order('nom'),
-      SB.from('termes_surveilles').select('terme').eq('client_id',c.id).order('terme'),SB.from('suggestions_mots_cles').select('terme,occurrences').eq('client_id',c.id).order('occurrences',{ascending:false}).limit(15)]);
+      SB.from('termes_surveilles').select('terme,mot_a,operateur,mot_b').eq('client_id',c.id).order('terme'),SB.from('suggestions_mots_cles').select('terme,occurrences').eq('client_id',c.id).order('occurrences',{ascending:false}).limit(15)]);
     [hat,conc,ter,sug]=r.map(x=>x.data||[])}
   let logo=c?.logo_url||'';
+  // troisième mot, figé, des lignes de termes en surveillance : nom court de la marque
+  S.nomCourtFiche=String(c?.nom||'').replace(/\s*(c[oô]te d.?ivoire|\bCI\b)\s*/gi,' ').trim()||'la marque';
   const {data:bilan}=c?await SB.rpc('bilan_mots_cles',{p_client:c.id}):{data:[]};
   const prep=S.preparation&&S.preparation.client===c?.id?S.preparation:null;S.preparation=null;
   const blocConc=k=>`<div class="concurrent" data-id="${k?.id||''}"><div class="row"><label>Nom du concurrent<input type="text" data-c="nom" value="${esc(k?.nom||'')}" maxlength="80"></label><label>Site officiel<input type="text" data-c="site" value="${esc(k?.site_web||'')}" placeholder="Ex. : www.mtn.ci"></label><button type="button" class="btn danger mini retirer-conc">Retirer ce concurrent</button></div>
@@ -1297,8 +1299,8 @@ async function admFormMarque(clientId){
     <div class="bloc"><h3>Concurrents</h3><p class="muted small">Trois concurrents au plus. Seules leurs pages officielles sont suivies ; si vous indiquez leur site, leurs pages y sont trouvées à l’enregistrement. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
       <div id="z-conc">${conc.map(blocConc).join('')}</div><button type="button" class="btn sec mini" id="ajout-conc">+ Ajouter un concurrent</button></div>
 
-    <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Une publication sur la marque qui contient l’un de ces termes devient un point d’attention (mot entier ; accents et majuscules ignorés). Ces termes ne lancent aucune recherche et ne coûtent rien. Dix termes au plus.</p>
-      <div id="z-termes">${zoneLignes('terme',ter.map(t=>({v:t.terme})),'Ajouter un terme',10)}</div></div>
+    <div class="bloc"><h3>Termes en surveillance</h3><p class="muted small">Chaque ligne se lit : premier mot · ET, OU ou SAUF · second mot (facultatif) · ET le nom de la marque, toujours exigé. Une publication qui remplit une ligne devient un point d’attention prioritaire (mots entiers ; accents et majuscules ignorés). Ces lignes ne lancent aucune recherche et ne coûtent rien. Dix lignes au plus.</p>
+      <div id="z-termes">${zoneLignes('terme',ter.map(t=>({a:t.mot_a||t.terme,op:t.operateur||'ET',b:t.mot_b||''})),'Ajouter une ligne',10)}</div></div>
 
     <div class="barre-enregistrer"><span class="small muted" id="etat-fiche">${c?'Aucune modification.':'Renseignez la marque puis enregistrez une seule fois.'}</span><button class="btn" type="submit" id="b-enregistrer">${c?'Enregistrer les modifications':'Créer la marque'}</button></div>
   </form>`;
@@ -1397,7 +1399,7 @@ async function admFormMarque(clientId){
     const site=$('#m-site').value.trim();if(site&&!siteValide(site))return toast('L’adresse du site officiel n’est pas valide.',true);
     const p={client_id:c?.id||null,nom,secteur:$('#m-secteur').value.trim(),pays:$('#m-pays').value.trim(),site_web:site,logo_url:logo,couleur:c?.couleur||'#F77F00',
       mots_cles:mots,exclusions:excl,comptes_officiels:comptes,haters,
-      flux_rss:flux.map(o=>({nom:o.nom||nomDuLien(o.url),url:o.url,hater:!!o.hater,reseau:reseauDe(o.url)})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).map(o=>o.v).filter(Boolean)};
+      flux_rss:flux.map(o=>({nom:o.nom||nomDuLien(o.url),url:o.url,hater:!!o.hater,reseau:reseauDe(o.url)})),concurrents:concurrents.filter(k=>k.nom),termes:lireLignes($('#z-termes .lignes')).filter(o=>o.a).map(o=>({a:o.a,op:o.b?o.op:'',b:o.b}))};
     $('#b-enregistrer').disabled=true;
     const {data,error}=await SB.rpc('enregistrer_marque',{p});
     $('#b-enregistrer').disabled=false;
