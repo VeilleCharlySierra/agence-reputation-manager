@@ -548,7 +548,7 @@ body.rapport-ouvert{overflow:hidden}
       </div>
     </div>
   </header>
-  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><div class="passages" id="passages" aria-label="Passages du jour"></div><div class="marque-active" id="marque-active"></div></div></div>
+  <div class="barre-marques" id="barre-marques" hidden><div class="wrap"><div class="passages" id="passages" aria-label="Mises à jour de la veille"></div><div class="marque-active" id="marque-active"></div></div></div>
   <nav class="onglets" aria-label="Sections"><div class="wrap" id="onglets" role="tablist"></div></nav>
   </div>
   <main class="wrap" id="contenu"></main>
@@ -633,8 +633,8 @@ function dessinerPassages(){
   const maintenant=new Date(),m=maintenant.getUTCHours()*60+maintenant.getUTCMinutes();
   const mins=PASSAGES.map(h=>{const [a,b]=h.split(':').map(Number);return a*60+b});
   let prochain=mins.findIndex(x=>x>m);if(prochain<0)prochain=0;
-  $('#passages').innerHTML=`<span class="small">Passages du jour :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
-    return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochain passage':etat==='fait'?'Passage effectué':'Passage à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
+  $('#passages').innerHTML=`<span class="small">Mises à jour de la veille :</span>`+PASSAGES.map((h,i)=>{const etat=i===prochain?'prochain':mins[i]<=m?'fait':'avenir';
+    return `<span class="passage ${etat}" title="${etat==='prochain'?'Prochaine mise à jour':etat==='fait'?'Mise à jour effectuée':'Mise à jour à venir'}"><i></i>${h.replace(':','h')}</span>`}).join('');
   // petit écran : la liste défile jusqu'au prochain passage
   const pr=$('#passages .prochain');if(pr)$('#passages').scrollLeft=Math.max(0,pr.offsetLeft-$('#passages').offsetLeft-40);
 }
@@ -819,7 +819,7 @@ async function vueTableau(){
 // ===== Listes de publications =====
 const VUES={
   attention:{titre:'Points d’attention',q:q=>q.in('categorie',['attention','suivie']).neq('type','concurrent').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false,nullsFirst:false}),vide:'Aucune publication sous surveillance.'},
-  suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque passage.'},
+  suivies:{titre:'Publications suivies',q:q=>q.eq('categorie','suivie').neq('type','concurrent').order('suivie_le',{ascending:false}),vide:'Aucune publication suivie. Utilisez « Suivre » sur une publication pour relever ses statistiques à chaque mise à jour.'},
   publications:{titre:'Publications',periode:true,note:'Les publications suivies et les points d’attention n’y figurent plus : ils sont dans leur onglet. Les publications ordinaires restent 72 h.',q:q=>q.eq('categorie','publication').eq('type','remontee').order('remontee_le',{ascending:false}),vide:'Aucune publication pour l’instant.'},
   concurrents:{titre:'Concurrents',periode:true,q:q=>q.eq('type','concurrent').order('publiee_le',{ascending:false}),vide:'Aucune publication de concurrent pour l’instant. Les pages officielles des concurrents se déclarent avec chaque marque, dans Administration.'},
   officiels:{titre:'Canaux officiels',periode:true,q:q=>q.eq('type','officiel').order('publiee_le',{ascending:false}),vide:'Aucune publication des canaux officiels pour l’instant.'}
@@ -927,7 +927,7 @@ function ouvrirReleves(p){
   document.body.appendChild(d);d.querySelector('[data-f]').onclick=()=>d.close();d.onclose=()=>d.remove();d.addEventListener('click',e=>{if(e.target===d)d.close()});d.showModal();
 }
 // niveaux de surveillance : simple suivie (relevée à chaque passage), régulière (toutes les 2 heures), renforcée (toutes les heures)
-const NIVEAUX=[['simple','Simple suivie','relevée à chaque passage, toutes les 3 heures'],['reguliere','Surveillance régulière','relevée toutes les 2 heures'],['renforcee','Surveillance renforcée','relevée toutes les heures']];
+const NIVEAUX=[['simple','Simple suivie','relevée à chaque mise à jour, toutes les 3 heures'],['reguliere','Surveillance régulière','relevée toutes les 2 heures'],['renforcee','Surveillance renforcée','relevée toutes les heures']];
 const libNiveau=n=>(NIVEAUX.find(x=>x[0]===n)||[])[1]||'';
 const niveau=p=>p.categorie==='attention'?(p.statut_suivi==='Suivi toutes les 2 heures'?'reguliere':p.statut_suivi==='Alerte close'?'simple':'renforcee'):p.categorie==='suivie'?'simple':null;
 function carte(p,avecMarque=true){
@@ -1296,14 +1296,14 @@ async function admFormMarque(clientId){
       <details class="aide-requete"><summary>Comment remplir une ligne</summary>
         <p class="small">Chaque ligne se lit : <b>premier mot-clé</b> · <b>connecteur</b> · <b>second mot-clé</b>. Les accents et majuscules sont ignorés ; plusieurs mots dans une case forment une expression exacte.</p>
         <ul class="small"><li><b>—</b> : le premier mot-clé seul (ex. <code>Orange CI</code>)</li><li><b>ET</b> : les deux à la fois (ex. <code>Orange Money</code> ET <code>frais OU arnaque</code>)</li><li><b>OU</b> : l’un ou l’autre (ex. <code>#OrangeEstLà</code> OU <code>#OrangeCI</code>)</li><li><b>SAUF</b> : le premier sans le second (ex. <code>Orange</code> SAUF <code>jus d'orange</code>)</li></ul></details>
-      <p class="muted small" style="margin:0">Cinq lignes au plus : chaque ligne est recherchée à chaque passage et consomme du crédit. Une ligne = premier mot-clé, connecteur, second mot-clé (ex. <code>Orange</code> ET <code>Côte d'Ivoire</code>).</p>
+      <p class="muted small" style="margin:0">Cinq lignes au plus : chaque ligne est recherchée à chaque mise à jour et consomme du crédit. Une ligne = premier mot-clé, connecteur, second mot-clé (ex. <code>Orange</code> ET <code>Côte d'Ivoire</code>).</p>
       <div id="z-mots">${zoneLignes('mot',(f.mots_cles||[]).map(decomposer),'Ajouter une ligne de mots-clés',5)}</div>${tableBilan}
       <div class="propositions" id="propositions"></div>
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
       <textarea id="m-excl" rows="3" placeholder="Ex. : jus d'orange, orange mécanique, Orange RDC" aria-label="Mots à exclure, séparés par des virgules">${esc((f.exclusions||[]).join(', '))}</textarea>
       <p class="muted small" style="margin:0">Séparez les mots par des virgules. 30 au plus.</p></div>
 
-    <div class="bloc"><h3>Flux à suivre</h3><p class="muted small">Pages, comptes, groupes ou sites à lire à chaque passage, toutes les 3 heures (Facebook, X, TikTok, Instagram, YouTube ou site d’actualité). Collez simplement le lien : seules les publications de moins de 24 heures qui parlent de la marque sont retenues. Cochez « Hater » pour un compte hostile : chacune de ses publications sur la marque devient un point d’attention. Dix flux au plus.</p>
+    <div class="bloc"><h3>Flux à suivre</h3><p class="muted small">Pages, comptes, groupes ou sites à lire à chaque mise à jour, toutes les 3 heures (Facebook, X, TikTok, Instagram, YouTube ou site d’actualité). Collez simplement le lien : seules les publications de moins de 24 heures qui parlent de la marque sont retenues. Cochez « Hater » pour un compte hostile : chacune de ses publications sur la marque devient un point d’attention. Dix flux au plus.</p>
       <div id="z-flux">${zoneLignes('flux',fluxSuivis(f.flux_rss,hat),'Ajouter un flux',10)}</div></div>
 
     <div class="bloc"><h3>Concurrents</h3><p class="muted small">Trois concurrents au plus. Seules leurs pages officielles sont suivies ; si vous indiquez leur site, leurs pages y sont trouvées à l’enregistrement. Leurs publications et la comparaison avec la marque figurent dans l’onglet Concurrents.</p>
