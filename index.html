@@ -1237,7 +1237,7 @@ async function admFormMarque(clientId){
       <div class="propositions" id="propositions"></div>
       <div class="sous-titre">Mots à exclure</div><p class="muted small" style="margin:0">Une publication qui contient l’un de ces mots est écartée.</p>
       <textarea id="m-excl" rows="3" placeholder="Ex. : jus d'orange, orange mécanique, Orange RDC" aria-label="Mots à exclure, séparés par des virgules">${esc((f.exclusions||[]).join(', '))}</textarea>
-      <p class="muted small" style="margin:0">Séparez les mots par des virgules. 50 au plus.</p></div>
+      <p class="muted small" style="margin:0">Séparez les mots par des virgules. 30 au plus.</p></div>
 
     <div class="bloc"><h3>Flux RSS</h3><p class="muted small">Flux créés sur RSS.app (pages, groupes, sites d’actualité). Ils sont lus à chaque passage, toutes les 3 heures ; seules les publications de moins de 24 heures qui répondent aux mots-clés de la marque sont retenues.</p>
       <div id="z-rss">${zoneLignes('rss',f.flux_rss||[],'Ajouter un flux RSS',20)}</div></div>
@@ -1327,7 +1327,7 @@ async function admFormMarque(clientId){
     const mots=lignesMots.map(composer).filter(Boolean);
     if(mots.length>5)return toast('Au plus 5 lignes de mots-clés par marque.',true);
     const excl=[...new Set($('#m-excl').value.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean))];
-    if(excl.length>50)return toast('Au plus 50 mots à exclure par marque (vous en avez '+excl.length+').',true);
+    if(excl.length>30)return toast('Au plus 30 mots à exclure par marque (vous en avez '+excl.length+').',true);
     for(const m of mots){const err=controleRequete(m);if(err)return toast(`Mot-clé « ${m} » : ${err}.`,true)}
     const concurrents=[...$('#z-conc').querySelectorAll('.concurrent')].map(b=>({id:b.dataset.id?Number(b.dataset.id):null,nom:b.querySelector('[data-c=nom]').value.trim(),
       site_web:b.querySelector('[data-c=site]').value.trim(),mots_cles:[],comptes:lireLignes(b.querySelector('.lignes[data-type=compte]')).filter(o=>o.url)}));
