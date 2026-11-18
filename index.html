@@ -577,7 +577,7 @@ const SB=supabase.createClient(SB_URL,SB_CLE,{auth:{persistSession:true,autoRefr
 
 const ROLES={super_admin:'Super administrateur',admin_plateforme:'Administrateur plateforme',admin_agence:'Administrateur agence',user_agence:'Utilisateur agence',user_client:'Accès marque'};
 const GERE={super_admin:Object.keys(ROLES),admin_plateforme:['admin_agence','user_agence','user_client'],admin_agence:['admin_agence','user_agence','user_client']};
-const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:'tableau',admin:'recap',adminMarque:null,modifie:false,filtres:{}};
+const S={moi:null,clients:[],marques:[],client:null,periode:24,onglet:((location.hash.match(/^#(tableau|attention|publications|officiels|concurrents|rapports)\b/)||[])[1]||'tableau'),admin:'recap',adminMarque:null,modifie:false,filtres:{}};
 // Image de marque : fixée dans le code source, jamais modifiable depuis la plateforme
 // Passages de collecte (heure UTC = heure d'Abidjan), fixés par la formule de l'agence
 // plateformes surveillées : recherche par mots-clés, comptes officiels et remontées de l'équipe
