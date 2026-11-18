@@ -420,8 +420,8 @@ body.rapport-ouvert{overflow:hidden}
 .kpis span{font-size:.75rem;color:#5d6155}
 .deux{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
 .barres{display:grid;gap:6px}
-.barre{display:grid;grid-template-columns:minmax(80px,32%) 1fr 48px;gap:8px;align-items:center;font-size:.85rem}
-.barre .lib{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barre{display:grid;grid-template-columns:minmax(80px,42%) 1fr 52px;gap:8px;align-items:center;font-size:.85rem}
+.barre .lib{overflow:hidden;white-space:normal;line-height:1.2;max-height:2.4em;word-break:break-word}
 .barre .piste{height:12px;background:#eef0e8;border-radius:6px;overflow:hidden}
 .barre .piste i{display:block;height:100%;background:linear-gradient(90deg,#111 0,#3a3d33 100%);border-right:3px solid var(--r-acc)}
 .barre b{text-align:right}
@@ -461,7 +461,8 @@ body.rapport-ouvert{overflow:hidden}
 .colonnes{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;height:44mm;align-items:end;border-bottom:1px solid #e3e5dc;padding-bottom:4px}
 .colonnes .col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;font-size:.75rem}
 .colonnes .barre-v{width:70%;background:#111;border-top:3px solid var(--r-acc);border-radius:3px 3px 0 0;min-height:2px}
-.colonnes .lib{color:#6b6f63}
+.colonnes .lib{color:#6b6f63;text-align:center;line-height:1.15;white-space:nowrap}
+.colonnes .col .num{white-space:nowrap}
 .nuage{text-align:center;line-height:1.35;padding:8px 4px;border:1px solid #e3e5dc;border-radius:8px;min-height:50mm;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 10px}
 .nuage span{color:#3a3d33}
 .nuage span.fort{color:#111;background:linear-gradient(transparent 62%,color-mix(in srgb,var(--r-acc) 70%,transparent) 62%)}
@@ -493,7 +494,7 @@ body.rapport-ouvert{overflow:hidden}
 .r-doc.export{position:fixed;left:-10000px;top:0;width:210mm;display:block!important;padding:0!important;gap:0;pointer-events:none}
 .r-doc.export .page{width:210mm!important;height:297mm!important;min-height:297mm!important;box-shadow:none;margin:0}
 .r-doc.export .kpis{grid-template-columns:repeat(4,1fr)!important}.r-doc.export .kpis.cinq{grid-template-columns:repeat(5,1fr)!important}
-.r-doc.export .deux{grid-template-columns:1.4fr 1fr!important}.r-doc.export .r-pubs{grid-template-columns:1fr 1fr!important}
+.r-doc.export .deux{grid-template-columns:1.4fr 1fr!important}.r-doc.export .deux.egal,.deux.egal{grid-template-columns:1fr 1fr!important}.r-doc.export .r-pubs{grid-template-columns:1fr 1fr!important}
 .r-doc.export .page.six .r-pubs{grid-template-rows:repeat(3,minmax(0,1fr))!important}.r-doc.export .c-bande dl{grid-template-columns:1fr 1fr!important}
 .r-doc.export .r-att-corps{grid-template-columns:auto 1fr!important}.r-doc.export .r-att-capture{width:62mm!important}
 .r-doc.export .nuage span.fort{background:linear-gradient(transparent 62%,rgba(198,221,31,.7) 62%)}
@@ -1696,9 +1697,17 @@ function pagesRapport(r){
   const arc=(a,b,c)=>{if(b-a<=0)return '';if(b-a>=359.99)return `<circle cx="50" cy="50" r="48" fill="${c}"/>`;const p=t=>[50+48*Math.sin(t*Math.PI/180),50-48*Math.cos(t*Math.PI/180)].map(v=>v.toFixed(2)).join(' ');return `<path d="M50 50 L${p(a)} A48 48 0 ${b-a>180?1:0} 1 ${p(b)} Z" fill="${c}"/>`};
   const camemb=nT?`<svg class="camembert" viewBox="0 0 100 100" aria-hidden="true">${arc(0,a1,'#3DA56A')}${arc(a1,a2,'#A3A69C')}${arc(a2,360,'#E5484D')}</svg>
     <ul class="legende"><li><i style="background:var(--r-pos)"></i>Positif ${pct(nPos,nT)}</li><li><i style="background:var(--r-neu)"></i>Neutre ${pct(nNeu,nT)}</li><li><i style="background:var(--r-neg)"></i>Négatif ${pct(nNeg,nT)}</li></ul>`:'<p class="vide-r">Aucune publication analysée sur la période.</p>';
-  const tr=d.tranches||[],maxT=Math.max(1,...tr.map(x=>x.n));
-  const heure=t=>String(new Date(t).getUTCHours()).padStart(2,'0')+'h';
-  const tranches=tr.length?`<div class="colonnes">${tr.map(x=>`<div class="col"><b class="num">${x.n}</b><span class="barre-v" style="height:${Math.max(2,x.n*100/maxT)}%"></span><span class="lib">${heure(x.debut)}</span></div>`).join('')}</div>`:'<p class="vide-r">Non disponible.</p>';
+  // tranches regroupées pour tenir sur une ligne (12 colonnes au plus), quelle que soit la durée de la période
+  const H=3600e3,tr0=(d.tranches||[]).filter(x=>x&&x.debut).sort((x,y)=>new Date(x.debut)-new Date(y.debut));
+  const pas=[3,6,12,24,48,72,168].find(h=>tr0.length*3/h<=12)||168;
+  const tr=[];for(const x of tr0){const t=new Date(x.debut).getTime(),k=Math.floor(t/(pas*H))*pas*H,der=tr[tr.length-1];if(der&&der.k===k)der.n+=x.n||0;else tr.push({k,n:x.n||0})}
+  const maxT=Math.max(1,...tr.map(x=>x.n));
+  const jj=t=>{const v=new Date(t);return String(v.getUTCDate()).padStart(2,'0')+'/'+String(v.getUTCMonth()+1).padStart(2,'0')};
+  const hh=t=>String(new Date(t).getUTCHours()).padStart(2,'0')+'h';
+  const plusieursJours=tr.length&&(tr[tr.length-1].k-tr[0].k)>=24*H;
+  const libT=t=>pas>=24?jj(t):plusieursJours?`${jj(t)}<br>${hh(t)}`:hh(t);
+  const titreTranches=pas<24?`Publications par tranche de ${pas} heures`:pas===24?'Publications par jour':`Publications par tranche de ${pas/24===7?'7':pas/24} jours`;
+  const tranches=tr.length?`<div class="colonnes" style="grid-template-columns:repeat(${Math.max(tr.length,6)},1fr)">${tr.map(x=>`<div class="col"><b class="num">${nb(x.n)}</b><span class="barre-v" style="height:${Math.max(2,x.n*100/maxT)}%"></span><span class="lib">${libT(x.k)}</span></div>`).join('')}</div>`:'<p class="vide-r">Non disponible.</p>';
   const mots=d.mots||[],maxM=Math.max(1,...mots.map(x=>x.n)),minM=Math.min(...mots.map(x=>x.n),maxM);
   const nuage=mots.length?`<div class="nuage">${[...mots].sort((x,y)=>x.mot.localeCompare(y.mot,'fr')).map(x=>{const k=maxM===minM?.5:(x.n-minM)/(maxM-minM);return `<span style="font-size:${(.85+k*2.1).toFixed(2)}em;font-weight:${k>.5?700:500}" class="${k>.6?'fort':''}">${esc(x.mot)}</span>`}).join(' ')}</div>`:'<p class="vide-r">Aucun mot sur la période.</p>';
 
@@ -1730,11 +1739,11 @@ function pagesRapport(r){
     <h3>Faits marquants</h3><ul>${(syn.faits||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
     ${typeStat?'':`<h3>Points d’attention</h3><ul>${(syn.attention||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`}`);
   page('01 – Tableau de bord',`<div class="kpis cinq"><div><b class="num">${nb(tot)}</b><span>publications</span></div><div><b class="num">${pct(d.negatives||0,tot)}</b><span>négatives</span></div><div><b class="num">${nb((d.jaime||0)+(d.com||0)+(d.part||0))}</b><span>interactions</span></div><div><b class="num">${(d.attention||[]).length}</b><span>points d’attention actifs</span></div><div><b class="sm">${dominant?esc(dominant.theme):'non disponible'}</b><span>thème dominant</span></div></div>
-    <h3>Publications par tranche de 3 heures</h3>${tranches}
+    <h3>${titreTranches}</h3>${tranches}
     <div class="deux"><div><h3>Thématiques</h3>${barres(themes.slice(0,8),'n','theme')}</div><div><h3>Sens des publications</h3>${camemb}</div></div>
     <div class="kpis"><div><b class="num">${nb(d.jaime)}</b><span>j'aime</span></div><div><b class="num">${nb(d.com)}</b><span>commentaires</span></div><div><b class="num">${nb(d.part)}</b><span>partages</span></div><div><b class="num">${Object.keys(d.par_reseau||{}).length}</b><span>réseaux</span></div></div>`);
   page('01 – Tableau de bord (suite)',`<h3>Nuage de mots</h3>${nuage}
-    <div class="deux"><div><h3>Localités citées</h3>${barres((d.lieux||[]).slice(0,10),'n','lieu')}</div><div><h3>Interactions par thématique</h3>${barres(themes.slice(0,10).map(x=>({theme:x.theme,i:x.interactions||0})),'i','theme')}</div></div>
+    <div class="deux egal"><div><h3>Localités citées</h3>${barres((d.lieux||[]).slice(0,10),'n','lieu')}</div><div><h3>Interactions par thématique</h3>${barres(themes.slice(0,10).map(x=>({theme:x.theme,i:x.interactions||0})),'i','theme')}</div></div>
     <h3>Publications par réseau</h3>${barres(Object.entries(d.par_reseau||{}).map(([k,v])=>({k,v})).sort((x,y)=>y.v-x.v),'v','k')}
     <p class="note">Base : publications publiques remontées sur la marque pendant la période, hors canaux officiels et concurrents ; mêmes chiffres que le tableau de bord de la plateforme.</p>`);}
   // points d'attention : jamais coupés, un ou deux par page selon leur taille
