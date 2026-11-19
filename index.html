@@ -260,6 +260,8 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 .ligne-tdb{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.86rem}
 .ligne-tdb:last-child{border-bottom:0}
 .puce.statut{background:var(--accent);color:var(--on-accent)}
+.puce.bloquee{background:#7a1f1f;color:#fff}
+.r-motifs span.bloquee{background:#7a1f1f!important;color:#fff!important}
 .tdb .camembert-app{width:150px}
 @media (max-width:1100px){.grille-tdb{grid-template-columns:1fr 1fr}.grille-tdb.deux-tiers,.grille-tdb.deux{grid-template-columns:1fr}}
 @media (max-width:720px){.grille-tdb{grid-template-columns:1fr}.mini-chiffres{grid-template-columns:repeat(2,1fr)}}
@@ -794,7 +796,7 @@ async function vueTableau(){
     // mêmes règles que les listes : publications visibles (non archivées), datées par leur date de publication sur la période
     filtreClient(SB.from('publications').select('id,categorie,sentiment,jaime,com,part,vues,plateforme,theme,lieu,texte,titre,auteur,lien,remontee_le,publiee_le').eq('type','remontee').is('archive_le',null)
       .gte('publiee_le',bt.debut.toISOString()).lt('publiee_le',bt.fin.toISOString())).limit(3000),
-    filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
+    filtreClient(SB.from('publications').select('id,auteur,titre,texte,plateforme,com,vues,epingle,attention_depuis,statut_suivi,motifs,lien,collecte_bloquee_le').eq('categorie','attention').neq('type','concurrent').is('archive_le',null).neq('statut_suivi','Alerte close').order('epingle',{ascending:false}).order('attention_depuis',{ascending:false})),
     filtreClient(SB.from('publications').select('id',{count:'exact',head:true}).eq('categorie','suivie').is('archive_le',null))]);
   const pubs=pp.data||[],atts=att.data||[];
   const neg=pubs.filter(p=>p.sentiment==='Négatif').length,analysees=pubs.filter(p=>['Positif','Neutre','Négatif'].includes(p.sentiment)).length,somme=k=>pubs.reduce((t,p)=>t+(p[k]||0),0);
@@ -821,7 +823,7 @@ async function vueTableau(){
       <div class="bloc s20"><h3>Nuage de mots</h3>${nuageMots(pubs,[marque?.nom||''])}</div>
       <div class="bloc s10"><h3>Localités citées</h3>${barresApp(lieux.slice(0,8).map(([k,v])=>[k,v[0]]),'Aucune localité citée sur la période.')}</div>
       <div class="bloc s20"><div class="entete-vue"><h3>Points d'attention en cours</h3>${atts.length?'<button class="btn sec mini" id="va-att" type="button">Tout voir</button>':''}</div>
-        ${atts.length?'<div class="liste-tdb">'+atts.slice(0,5).map(a=>`<div class="ligne-tdb">${a.epingle?'<span class="puce acc">Épinglé</span>':''}<span class="puce">${esc(a.plateforme)}</span><b>${esc(a.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(a.titre||a.texte||'',12))}</span><span class="num small">${nb(a.com)} comm.</span>${a.statut_suivi?`<span class="puce statut">${esc(a.statut_suivi)}</span>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
+        ${atts.length?'<div class="liste-tdb">'+atts.slice(0,5).map(a=>`<div class="ligne-tdb">${a.epingle?'<span class="puce acc">Épinglé</span>':''}<span class="puce">${esc(a.plateforme)}</span><b>${esc(a.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(a.titre||a.texte||'',12))}</span><span class="num small">${nb(a.com)} comm.</span>${a.statut_suivi?`<span class="puce statut">${esc(a.statut_suivi)}</span>`:''}${a.collecte_bloquee_le?`<span class="puce bloquee" title="Publication passée en privé ou supprimée : ses chiffres et ses commentaires ne peuvent plus être relevés automatiquement.">⛔ Collecte automatique bloquée</span>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucun point d’attention en cours.</p>'}</div>
       <div class="bloc s10"><h3>Publications les plus engageantes</h3>
         ${top.length?'<div class="liste-tdb">'+top.map(p=>`<div class="ligne-tdb"><span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}<b>${esc(p.auteur||'Auteur non disponible')}</b><span class="muted">${esc(extrait(p.titre||p.texte||'',12))}</span><span class="num small">${nb(interactions(p))} interactions</span>${lienSur(p.lien)?`<a class="small" href="${esc(lienSur(p.lien))}" target="_blank" rel="noopener">Voir</a>`:''}</div>`).join('')+'</div>':'<p class="muted small">Aucune publication sur la période.</p>'}</div>
     </div>
@@ -959,7 +961,7 @@ function carte(p,avecMarque=true){
     <a class="pub-image" ${lien?`href="${esc(lien)}" target="_blank" rel="noopener"`:''}>${p.capture?`<img loading="lazy" src="${esc(p.capture)}" alt="Capture de la publication">`:`<span>${esc(p.plateforme||'')}</span>`}</a>
     <div class="pub-corps">
       <div class="puces">${p.type==='concurrent'?`<span class="puce acc">${esc(S.nomsConc?.[p.concurrent_id]||'Concurrent')}</span>`:avecMarque?`<span class="puce acc">${esc(nomMarque(p.marque_id))}</span>`:''}<span class="puce">${esc(p.plateforme)}</span>${p.sentiment?`<span class="puce ${esc(p.sentiment)}">${esc(p.sentiment)}</span>`:''}${p.en_analyse?'<span class="puce">Analyse en cours</span>':''}${p.epingle?'<span class="puce acc">Épinglé</span>':''}</div>
-      ${n?`<div class="pub-motifs" title="${esc([libNiveau(n),...(p.motifs||[])].filter(Boolean).join(' · '))}"><span class="puce statut">${esc(libNiveau(n))}</span>${p.categorie==='attention'&&p.statut_suivi!=='Alerte close'?(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join(''):''}</div>`:''}
+      ${n?`<div class="pub-motifs" title="${esc([libNiveau(n),...(p.motifs||[])].filter(Boolean).join(' · '))}"><span class="puce statut">${esc(libNiveau(n))}</span>${p.collecte_bloquee_le?`<span class="puce bloquee" title="Publication passée en privé ou supprimée : ses chiffres et ses commentaires ne peuvent plus être relevés automatiquement.">⛔ Collecte automatique bloquée</span>`:''}${p.categorie==='attention'&&p.statut_suivi!=='Alerte close'?(p.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join(''):''}</div>`:''}
       <div class="pub-auteur" title="${esc(p.auteur||'')}">${esc(p.auteur||'Auteur non disponible')}</div>
       <div class="pub-texte">${p.texte||p.titre?`« ${esc(extrait(p.texte||p.titre))} »`:'<span class="muted">Texte non disponible.</span>'}</div>
       <div class="pub-meta" title="Publiée le ${esc(date(p.publiee_le))} · ${esc(quand)}">${[p.theme,p.lieu||'Non localisé'].filter(Boolean).map(esc).join(' · ')} · ${esc(date(p.publiee_le).replace(' UTC',''))}</div>
@@ -1724,7 +1726,7 @@ function pagesRapport(r){
     <div class="r-att-corps">${x.capture?`<img class="r-att-capture" src="${esc(x.capture)}" alt="">`:''}
     <div class="r-att-infos"><b>${esc(x.auteur||'Auteur non disponible')}</b>
       <div class="r-dates">Publiée le ${x.publiee_le?jourHeure(x.publiee_le):'non disponible'} · remontée le ${x.remontee_le?jourHeure(x.remontee_le):'non disponible'}</div>
-      <div class="r-motifs">${(x.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}<span class="statut">${esc(x.statut||'En cours')}</span></div>
+      <div class="r-motifs">${(x.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}<span class="statut">${esc(x.statut||'En cours')}</span>${x.bloquee?'<span class="bloquee">⛔ Collecte automatique bloquée</span>':''}</div>
       ${x.titre?`<div class="r-titre">${esc(x.titre)}</div>`:''}
       <div class="r-texte-plein">${x.texte?'« '+esc(x.texte)+' »':'Texte non disponible.'}</div>
       <div class="r-chiffres num"><span><b>${nd(x.jaime)}</b> j'aime</span><span><b>${nd(x.com)}</b> commentaires</span><span><b>${nd(x.part)}</b> partages</span><span><b>${nd(x.vues)}</b> vues</span></div>
