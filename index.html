@@ -616,8 +616,12 @@ function appliquerMarque(p){
 // ===== Démarrage =====
 async function demarrer(){
   appliquerMarque(IMAGE);
+  // lien de connexion expiré ou déjà utilisé : retour à l'écran de connexion avec la marche à suivre
+  const h=new URLSearchParams(location.hash.slice(1)+'&'+location.search.slice(1));
+  const lienKo=h.get('error_code')||h.get('error');
+  if(lienKo)history.replaceState(null,'',location.pathname);
   const {data:{session}}=await SB.auth.getSession();
-  if(!session)return afficher('connexion');
+  if(!session){afficher('connexion');if(lienKo)$('#c-erreur').textContent='Ce lien de connexion a expiré ou a déjà servi. Saisissez votre adresse e-mail puis « Recevoir un lien de connexion » pour en obtenir un nouveau.';return}
   await chargerProfil();
 }
 function afficher(e){for(const x of ['connexion','mdp','app'])$('#ecran-'+x).hidden=x!==e}
@@ -682,8 +686,9 @@ $('#c-lien').addEventListener('click',async()=>{
   const email=$('#c-email').value.trim().toLowerCase();$('#c-erreur').textContent='';
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$('#c-email').focus();$('#c-erreur').textContent='Saisissez votre adresse e-mail.';return}
   $('#c-lien').disabled=true;
-  await SB.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split('#')[0].split('?')[0]}});
+  const {error}=await SB.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split('#')[0].split('?')[0]}});
   $('#c-lien').disabled=false;
+  if(error&&(error.status===429||/rate|seconds|security purposes/i.test(error.message||''))){$('#c-erreur').textContent='Un lien vient déjà d’être demandé pour cette adresse : patientez une minute avant d’en redemander un.';return}
   $('#c-erreur').textContent='';toast('Si cette adresse a accès à la plateforme, un lien de connexion vient de lui être envoyé. Pensez à regarder les courriers indésirables.');
 });
 $('#f-mdp').addEventListener('submit',async e=>{
