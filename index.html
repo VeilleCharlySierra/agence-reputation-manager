@@ -261,7 +261,6 @@ table.tab th{color:var(--muted);font-weight:500;font-size:.78rem;text-transform:
 .ligne-tdb:last-child{border-bottom:0}
 .puce.statut{background:var(--accent);color:var(--on-accent)}
 .puce.bloquee{background:#7a1f1f;color:#fff}
-.r-motifs span.bloquee{background:#7a1f1f!important;color:#fff!important}
 .tdb .camembert-app{width:150px}
 @media (max-width:1100px){.grille-tdb{grid-template-columns:1fr 1fr}.grille-tdb.deux-tiers,.grille-tdb.deux{grid-template-columns:1fr}}
 @media (max-width:720px){.grille-tdb{grid-template-columns:1fr}.mini-chiffres{grid-template-columns:repeat(2,1fr)}}
@@ -1726,7 +1725,7 @@ function pagesRapport(r){
     <div class="r-att-corps">${x.capture?`<img class="r-att-capture" src="${esc(x.capture)}" alt="">`:''}
     <div class="r-att-infos"><b>${esc(x.auteur||'Auteur non disponible')}</b>
       <div class="r-dates">Publiée le ${x.publiee_le?jourHeure(x.publiee_le):'non disponible'} · remontée le ${x.remontee_le?jourHeure(x.remontee_le):'non disponible'}</div>
-      <div class="r-motifs">${(x.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}<span class="statut">${esc(x.statut||'En cours')}</span>${x.bloquee?'<span class="bloquee">⛔ Collecte automatique bloquée</span>':''}</div>
+      <div class="r-motifs">${(x.motifs||[]).map(m=>`<span>${esc(m)}</span>`).join('')}<span class="statut">${esc(x.statut||'En cours')}</span></div>
       ${x.titre?`<div class="r-titre">${esc(x.titre)}</div>`:''}
       <div class="r-texte-plein">${x.texte?'« '+esc(x.texte)+' »':'Texte non disponible.'}</div>
       <div class="r-chiffres num"><span><b>${nd(x.jaime)}</b> j'aime</span><span><b>${nd(x.com)}</b> commentaires</span><span><b>${nd(x.part)}</b> partages</span><span><b>${nd(x.vues)}</b> vues</span></div>
